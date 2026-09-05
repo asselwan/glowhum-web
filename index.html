@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1026">
+<script>
+(function(){var t=null;try{t=localStorage.getItem("glowhum-theme")}catch(e){}
+if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"}
+document.documentElement.setAttribute("data-theme",t);})();
+</script>
+<title>GLOWHUM: drop a report, get a published episode</title>
+<meta name="description" content="GLOWHUM turns a topic or a research report into a finished long form episode plus three vertical cuts, published to YouTube, TikTok and Shorts. No human in the loop unless you want one. Unit cost printed on every receipt.">
+<meta property="og:title" content="GLOWHUM">
+<meta property="og:description" content="Drop a topic or a research report. Get a finished episode plus three vertical cuts, published to YouTube, TikTok and Shorts. Unit cost on every receipt.">
+<style>
+:root{
+  --night:#0b1026;
+  --night-2:#101736;
+  --core:#ffb454;
+  --aura:#ff7a3d;
+  --volt:#41e6ff;
+  --ink:#eef0ff;
+  --dim:#9aa3c7;
+  --panel:#121a3d;
+  --seam:#232c58;
+  --card:#0e1533;
+  color-scheme:dark;
+}
+[data-theme="light"]{
+  --night:#f6f3ec;
+  --night-2:#efe9dd;
+  --ink:#141a3a;
+  --dim:#4d5578;
+  --panel:#fffdf7;
+  --seam:#ddd4c2;
+  --card:#ffffff;
+  --core:#e07f1f;
+  --aura:#e0561f;
+  --volt:#0a8fb0;
+  color-scheme:light;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--night);color:var(--ink);
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:17px;line-height:1.55;overflow-x:clip;
+  transition:background .3s ease,color .3s ease;
+}
+a{color:inherit}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--volt);outline-offset:3px;border-radius:4px}
+.wrap{width:100%;max-width:1060px;margin:0 auto;padding:0 22px}
+
+.chrome{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 0}
+.brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:.14em;font-size:15px;text-decoration:none}
+.brand .word b{color:var(--core);font-weight:800}
+.themebtn{
+  display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border-radius:999px;
+  border:1px solid var(--seam);background:var(--panel);font-size:13px;font-weight:700;letter-spacing:.06em;
+}
+.themebtn:hover{border-color:var(--aura)}
+
+.hero{position:relative;padding:72px 0 56px;text-align:left}
+.hum{position:absolute;inset:-40px -20px auto -20px;height:560px;pointer-events:none;z-index:-1}
+.hum .orb{
+  position:absolute;left:50%;top:120px;width:min(720px,110vw);height:min(720px,110vw);
+  transform:translateX(-50%);border-radius:50%;
+  background:radial-gradient(circle at 50% 42%,var(--core) 0%,var(--aura) 26%,transparent 62%);
+  opacity:.28;filter:blur(28px);
+  animation:hum 7s ease-in-out infinite;
+}
+.hum .orb.two{opacity:.12;animation-delay:-3.5s;filter:blur(60px)}
+@keyframes hum{
+  0%,100%{transform:translateX(-50%) scale(1);opacity:.28}
+  50%{transform:translateX(-50%) scale(1.09);opacity:.38}
+}
+.kicker{font-size:13px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:var(--volt);margin-bottom:18px}
+h1{
+  font-size:clamp(46px,9.5vw,96px);line-height:.98;font-weight:900;letter-spacing:-.02em;
+  margin-bottom:22px;
+}
+h1 .glow{
+  background:linear-gradient(100deg,var(--core) 10%,var(--aura) 90%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.lede{font-size:clamp(18px,2.6vw,23px);max-width:640px;color:var(--dim);font-weight:600;margin-bottom:14px}
+.lede b{color:var(--ink)}
+.outputs{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0 30px;list-style:none}
+.outputs li{
+  padding:9px 15px;border-radius:999px;border:1px solid var(--seam);background:var(--panel);
+  font-size:14px;font-weight:700;
+}
+.outputs li b{color:var(--core)}
+.cta{
+  display:inline-flex;align-items:center;gap:10px;text-decoration:none;
+  padding:16px 28px;border-radius:14px;font-weight:800;font-size:17px;
+  background:linear-gradient(100deg,var(--core),var(--aura));color:#1a0e02;
+  box-shadow:0 8px 34px rgba(255,122,61,.34);
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+.cta:hover{transform:translateY(-2px);box-shadow:0 14px 44px rgba(255,122,61,.44)}
+.cta svg{flex:none}
+
+section{padding:64px 0}
+h2{font-size:clamp(28px,5vw,44px);font-weight:900;letter-spacing:-.01em;margin-bottom:8px}
+.sub{color:var(--dim);max-width:560px;margin-bottom:36px;font-weight:600}
+
+/* demo strip */
+.demo{border:1px solid var(--seam);border-radius:20px;background:var(--card);padding:26px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.typeline{
+  display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;
+  border:1px solid var(--seam);background:var(--panel);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:15px;min-height:52px;margin-bottom:22px;
+}
+.typeline .caret{display:inline-block;width:9px;height:1.15em;background:var(--volt);animation:blink 1s steps(1) infinite;vertical-align:text-bottom}
+@keyframes blink{50%{opacity:0}}
+.typeline .dropicon{flex:none;color:var(--core)}
+.cards{display:grid;gap:14px;grid-template-columns:1fr}
+@media(min-width:640px){.cards{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:920px){.cards{grid-template-columns:repeat(4,1fr)}}
+.card{
+  border:1px solid var(--seam);border-radius:14px;background:var(--panel);padding:18px;
+  opacity:0;transform:translateY(14px);
+  transition:opacity .5s ease,transform .5s ease;
+}
+.card.show{opacity:1;transform:none}
+.card .tag{font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--volt);margin-bottom:10px}
+.card h3{font-size:18px;font-weight:800;margin-bottom:6px}
+.card p{font-size:14px;color:var(--dim)}
+.card .thumb{
+  height:86px;border-radius:9px;margin-bottom:12px;
+  background:linear-gradient(135deg,var(--night-2),var(--seam));
+  display:flex;align-items:center;justify-content:center;color:var(--core);
+}
+.card.vert .thumb{background:linear-gradient(160deg,var(--night-2) 20%,var(--seam))}
+.receipt{
+  margin-top:14px;border:1px dashed var(--seam);border-radius:14px;background:var(--panel);padding:18px 20px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;
+  opacity:0;transform:translateY(14px);transition:opacity .5s ease .1s,transform .5s ease .1s;
+}
+.receipt.show{opacity:1;transform:none}
+.receipt .rline{display:flex;justify-content:space-between;gap:14px;padding:5px 0;color:var(--dim)}
+.receipt .rline.total{border-top:1px solid var(--seam);margin-top:8px;padding-top:12px;color:var(--ink);font-weight:800}
+.receipt .rline.total span:last-child{color:var(--core)}
+
+/* steps */
+.steps{list-style:none;display:grid;gap:14px;counter-reset:step}
+@media(min-width:760px){.steps{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:980px){.steps{grid-template-columns:repeat(4,1fr)}}
+.steps li{border:1px solid var(--seam);border-radius:16px;background:var(--panel);padding:22px;counter-increment:step}
+.steps li::before{
+  content:counter(step,decimal-leading-zero);display:block;font-size:13px;font-weight:900;letter-spacing:.16em;
+  color:var(--aura);margin-bottom:12px;
+}
+.steps h3{font-size:18px;font-weight:800;margin-bottom:7px}
+.steps p{font-size:14.5px;color:var(--dim)}
+
+/* pricing */
+.tiers{display:grid;gap:14px}
+@media(min-width:820px){.tiers{grid-template-columns:repeat(3,1fr)}}
+.tier{border:1px solid var(--seam);border-radius:18px;background:var(--panel);padding:26px;display:flex;flex-direction:column;gap:12px}
+.tier.hot{border-color:var(--aura);box-shadow:0 0 0 1px var(--aura),0 18px 50px rgba(255,122,61,.16)}
+.tier .name{font-size:13px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;color:var(--core)}
+.tier h3{font-size:22px;font-weight:900}
+.tier p{font-size:14.5px;color:var(--dim);flex:1}
+.tier .price{
+  font-size:13px;font-weight:700;border-top:1px solid var(--seam);padding-top:14px;color:var(--dim);
+}
+.tier .price b{color:var(--volt)}
+
+/* footer */
+footer{border-top:1px solid var(--seam);padding:44px 0 54px;text-align:center}
+footer .made{font-size:15px;font-weight:800;margin-bottom:8px}
+footer .made b{color:var(--core)}
+footer .by{font-size:13px;color:var(--dim);letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+footer .by b{color:var(--ink)}
+
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  .hum .orb{animation:none}
+  .typeline .caret{animation:none}
+  .card,.receipt{transition:none;opacity:1;transform:none}
+  .cta{transition:none}
+}
+</style>
+</head>
+<body>
+<header class="wrap chrome">
+  <a class="brand" href="#top" aria-label="GLOWHUM home">
+    <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
+      <circle cx="16" cy="16" r="13" fill="none" stroke="#ff7a3d" stroke-width="2.4" opacity=".55"/>
+      <circle cx="16" cy="16" r="7.5" fill="#ffb454"/>
+      <circle cx="16" cy="16" r="3" fill="#fff3df"/>
+    </svg>
+    <span class="word">GLOW<b>HUM</b></span>
+  </a>
+  <button class="themebtn" id="themeToggle" type="button" aria-label="Toggle dark and light theme">
+    <svg id="themeIcon" width="15" height="15" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="8" cy="8" r="3.4" fill="currentColor"/>
+      <g stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+        <path d="M8 1v1.8M8 13.2V15M1 8h1.8M13.2 8H15M3.2 3.2l1.3 1.3M11.5 11.5l1.3 1.3M12.8 3.2l-1.3 1.3M4.5 11.5l-1.3 1.3"/>
+      </g>
+    </svg>
+    <span id="themeLabel">Light</span>
+  </button>
+</header>
+
+<main id="top">
+  <section class="hero wrap" aria-label="Introduction">
+    <div class="hum" aria-hidden="true"><div class="orb"></div><div class="orb two"></div></div>
+    <p class="kicker">Glow is the picture. Hum is the sound.</p>
+    <h1><span class="glow">GLOW</span>HUM</h1>
+    <p class="lede">Drop a topic or a research report. Get a <b>finished long form episode</b> plus <b>three vertical cuts</b>, published to YouTube, TikTok and Shorts. No human in the loop unless you want one.</p>
+    <ul class="outputs" aria-label="What you get">
+      <li><b>1</b> long form episode</li>
+      <li><b>3</b> vertical cuts</li>
+      <li>Posted to <b>YouTube, TikTok, Shorts</b></li>
+      <li><b>Unit cost</b> on every receipt</li>
+    </ul>
+    <a class="cta" href="mailto:hello@glowhum.com?subject=Drop%20a%20report%20into%20GLOWHUM">
+      Drop a report
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+        <path d="M3 9h11M10 4.5 14.5 9 10 13.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </a>
+  </section>
+
+  <section class="wrap" aria-label="Demo">
+    <h2>Watch a drop become a channel</h2>
+    <p class="sub">One topic in. A finished episode, three verticals and a receipt out.</p>
+    <div class="demo">
+      <div class="typeline" aria-live="polite">
+        <svg class="dropicon" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+          <path d="M9 2v9M4.5 7.5 9 12l4.5-4.5M3 15.5h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span id="typed"></span><span class="caret" id="caret"></span>
+      </div>
+      <div class="cards" id="cards">
+        <div class="card">
+          <div class="tag">Long form</div>
+          <div class="thumb" aria-hidden="true">
+            <svg width="34" height="34" viewBox="0 0 34 34"><rect x="3" y="6" width="28" height="22" rx="4" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M14 12.5v9l8-4.5z" fill="currentColor"/></svg>
+          </div>
+          <h3>The episode</h3>
+          <p>Scripted from cited research, voiced, shot, cut and captioned on our own lanes.</p>
+        </div>
+        <div class="card vert">
+          <div class="tag">Vertical one</div>
+          <div class="thumb" aria-hidden="true">
+            <svg width="34" height="34" viewBox="0 0 34 34"><rect x="9" y="3" width="16" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15 14v7l6-3.5z" fill="currentColor"/></svg>
+          </div>
+          <h3>Cut one</h3>
+          <p>The strongest beat, reframed for the feed and posted to TikTok and Shorts.</p>
+        </div>
+        <div class="card vert">
+          <div class="tag">Vertical two</div>
+          <div class="thumb" aria-hidden="true">
+            <svg width="34" height="34" viewBox="0 0 34 34"><rect x="9" y="3" width="16" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15 14v7l6-3.5z" fill="currentColor"/></svg>
+          </div>
+          <h3>Cut two</h3>
+          <p>The second beat stands alone, with its own hook and on screen citation.</p>
+        </div>
+        <div class="card vert">
+          <div class="tag">Vertical three</div>
+          <div class="thumb" aria-hidden="true">
+            <svg width="34" height="34" viewBox="0 0 34 34"><rect x="9" y="3" width="16" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15 14v7l6-3.5z" fill="currentColor"/></svg>
+          </div>
+          <h3>Cut three</h3>
+          <p>The close becomes the teaser that points back to the full episode.</p>
+        </div>
+      </div>
+      <div class="receipt" id="receipt" aria-label="Receipt">
+        <div class="rline"><span>GLOWHUM receipt</span><span>drop 0042</span></div>
+        <div class="rline"><span>Episode plus three verticals</span><span>published</span></div>
+        <div class="rline"><span>YouTube, TikTok, Shorts</span><span>live links attached</span></div>
+        <div class="rline total"><span>Unit cost</span><span>printed here at publish time</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap" aria-label="How it works">
+    <h2>How it works</h2>
+    <p class="sub">Four steps from your drop to a published channel format episode.</p>
+    <ol class="steps">
+      <li>
+        <h3>Drop it in</h3>
+        <p>Hand GLOWHUM a topic or a research report. A topic triggers grounded research with a citation check before anything is written.</p>
+      </li>
+      <li>
+        <h3>Script and shot table</h3>
+        <p>The report becomes an episode skeleton with beats and timings, then a shot table where every shot carries its lane and its source.</p>
+      </li>
+      <li>
+        <h3>Produce on our lanes</h3>
+        <p>Voice, motion, screen records, cut, captions and music run on our own GPU lanes. Claims keep their citations on screen.</p>
+      </li>
+      <li>
+        <h3>Publish and receipt</h3>
+        <p>The episode goes to YouTube, three verticals go to TikTok and Shorts, and you get a receipt with the unit cost printed on it.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section class="wrap" aria-label="Pricing">
+    <h2>Pricing</h2>
+    <p class="sub">Launch pricing lands with the first public episode.</p>
+    <div class="tiers">
+      <div class="tier">
+        <div class="name">Drop</div>
+        <h3>One episode</h3>
+        <p>Drop a topic or a report. Receive one long form episode and three vertical cuts, published to your channels, receipt included.</p>
+        <div class="price"><b>Launch pricing lands with the first public episode.</b> Unit cost printed on every receipt.</div>
+      </div>
+      <div class="tier hot">
+        <div class="name">Channel</div>
+        <h3>A running format</h3>
+        <p>Your channel on a cadence. Every new report in the drop folder becomes an episode and three verticals, unattended, with a human review step if you want one.</p>
+        <div class="price"><b>Launch pricing lands with the first public episode.</b> Unit cost printed on every receipt.</div>
+      </div>
+      <div class="tier">
+        <div class="name">Studio</div>
+        <h3>The full creative studio</h3>
+        <p>Next on the roadmap. A complete creative studio for operators, running on our own GPU lanes with the same published cost table.</p>
+        <div class="price"><b>Launch pricing lands with the first public episode.</b> Unit cost printed on every receipt.</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="made">Made with <b>GLOWHUM</b></p>
+    <p class="by">Glowhum by <b>NOMOI</b></p>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  var btn=document.getElementById("themeToggle");
+  var label=document.getElementById("themeLabel");
+  var meta=document.querySelector('meta[name="theme-color"]');
+  function paint(){
+    var t=root.getAttribute("data-theme")==="light"?"light":"dark";
+    label.textContent=t==="light"?"Dark":"Light";
+    if(meta){meta.setAttribute("content",t==="light"?"#f6f3ec":"#0b1026")}
+  }
+  btn.addEventListener("click",function(){
+    var t=root.getAttribute("data-theme")==="light"?"dark":"light";
+    root.setAttribute("data-theme",t);
+    try{localStorage.setItem("glowhum-theme",t)}catch(e){}
+    paint();
+  });
+  paint();
+
+  var reduced=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var topic="why the power grid hums at night";
+  var typedEl=document.getElementById("typed");
+  var cards=Array.prototype.slice.call(document.querySelectorAll("#cards .card"));
+  var receipt=document.getElementById("receipt");
+  var started=false;
+
+  function revealAll(){
+    cards.forEach(function(c){c.classList.add("show")});
+    receipt.classList.add("show");
+  }
+  function run(){
+    if(started)return;started=true;
+    if(reduced){typedEl.textContent=topic;revealAll();return}
+    var i=0;
+    (function type(){
+      if(i<=topic.length){
+        typedEl.textContent=topic.slice(0,i);i++;
+        setTimeout(type,42);
+      }else{
+        setTimeout(function(){
+          cards.forEach(function(c,idx){
+            setTimeout(function(){c.classList.add("show")},idx*260);
+          });
+          setTimeout(function(){receipt.classList.add("show")},cards.length*260+220);
+        },320);
+      }
+    })();
+  }
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(en){if(en.isIntersecting){run();io.disconnect()}});
+    },{threshold:.3});
+    io.observe(document.querySelector(".demo"));
+  }else{run()}
+})();
+</script>
+</body>
+</html>
