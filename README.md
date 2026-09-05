@@ -8,8 +8,10 @@ Glowhum by NOMOI.
 
 ## Files
 
-- `index.html` the whole site. One file, inline CSS and JS, inline SVG only, no frameworks, under 120 KB.
-- `Dockerfile` serves the site with nginx.
+- `index.html` the whole front door. One file, inline CSS and JS, inline SVG only, no frameworks.
+- `server.mjs` zero-dependency Node server that serves the site and accepts drops.
+- `Dockerfile` builds a Node 22 Alpine image for that server.
+- `favicon.svg`, `favicon.ico`, `apple-touch-icon.png`, `site.webmanifest` site icons and metadata.
 
 ## Run
 
@@ -21,6 +23,36 @@ docker run --rm -p 8080:80 glowhum-web
 ```
 
 Then visit http://localhost:8080
+
+## API
+
+The server is a small HTTP API.
+
+- `GET /` returns `index.html`.
+- `GET /favicon.svg`, `/favicon.ico`, `/apple-touch-icon.png`, `/site.webmanifest` return those static assets with appropriate content types and cache headers.
+- `POST /api/drop` uploads one file as the raw request body. Required headers:
+  - `X-File-Name`
+  - `X-File-Size`
+  The file is streamed into the drop root, a SHA-256 is computed, and a `201` response returns a receipt with `id`, `name`, `size`, `sha256`, `received_at`, `status`, and `email`.
+- `POST /api/drop/:id/email` accepts JSON `{ "email": "..." }`, validates a plain email shape, saves it on the matching receipt, and returns the updated receipt.
+- `GET /api/drop/:id` returns the receipt for the stored drop.
+
+Drops are rate limited to 20 per IP per hour.
+
+Errors return JSON with an `error` field. A file over the configured limit returns `413`.
+
+## Drop root
+
+Drops are written to `DROP_ROOT`, which defaults to `/data/drops`. The layout is:
+
+```
+DROP_ROOT/
+  <12-char id>/
+    <safe original filename>
+    receipt.json
+```
+
+`DROP_MAX_BYTES` sets the maximum accepted file size; the default is 200 MB.
 
 ## Notes
 

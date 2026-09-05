@@ -1,18 +1,29 @@
+<!--
+  Part 2 of 3.
+  GLOWHUM front door.
+  Patterns referenced for this rebuild:
+  - Savee: full bleed hero drop area, one Select from device button (Mobbin 8494c1b0)
+  - Vapi: drag and drop anywhere on page plus success toast (Mobbin 45c83294)
+  - Supabase: upload progress with "please do not close the browser", then success toast (Mobbin 1e06958f)
+  - Otter: drop card listing accepted formats and Browser files button (Mobbin d394ae6a)
+  - Air: How it works 1 2 3 card under the drop (Mobbin e82a6e68)
+-->
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0b1026">
-<script>
-(function(){var t=null;try{t=localStorage.getItem("glowhum-theme")}catch(e){}
-if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"}
-document.documentElement.setAttribute("data-theme",t);})();
-</script>
-<title>GLOWHUM: drop a report, get a published episode</title>
-<meta name="description" content="GLOWHUM turns a topic or a research report into a finished long form episode plus three vertical cuts, published to YouTube, TikTok and Shorts. No human in the loop unless you want one. Unit cost printed on every receipt.">
+<title>GLOWHUM: Drop a report. Get an episode.</title>
+<meta name="description" content="Drop a topic or a research report. Receive a finished long form episode plus three vertical cuts, published to YouTube, TikTok and Shorts.">
 <meta property="og:title" content="GLOWHUM">
-<meta property="og:description" content="Drop a topic or a research report. Get a finished episode plus three vertical cuts, published to YouTube, TikTok and Shorts. Unit cost on every receipt.">
+<meta property="og:description" content="Drop a report. Get an episode.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<script>
+(function(){var t=null;try{t=localStorage.getItem("glowhum-theme")}catch(e){}if(t!=="dark"&&t!=="light"){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches?"light":"dark"}document.documentElement.setAttribute("data-theme",t);})();
+</script>
 <style>
 :root{
   --night:#0b1026;
@@ -25,6 +36,8 @@ document.documentElement.setAttribute("data-theme",t);})();
   --panel:#121a3d;
   --seam:#232c58;
   --card:#0e1533;
+  --ok:#57d9a3;
+  --bad:#ff6b6b;
   color-scheme:dark;
 }
 [data-theme="light"]{
@@ -38,6 +51,8 @@ document.documentElement.setAttribute("data-theme",t);})();
   --core:#e07f1f;
   --aura:#e0561f;
   --volt:#0a8fb0;
+  --ok:#0f9d6e;
+  --bad:#c53030;
   color-scheme:light;
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -45,14 +60,14 @@ html{scroll-behavior:smooth}
 body{
   background:var(--night);color:var(--ink);
   font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  font-size:17px;line-height:1.55;overflow-x:clip;
+  font-size:17px;line-height:1.55;
+  min-height:100vh;
   transition:background .3s ease,color .3s ease;
+  overflow-x:clip;
 }
-a{color:inherit}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 :focus-visible{outline:2px solid var(--volt);outline-offset:3px;border-radius:4px}
 .wrap{width:100%;max-width:1060px;margin:0 auto;padding:0 22px}
-
 .chrome{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:22px 0}
 .brand{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:.14em;font-size:15px;text-decoration:none}
 .brand .word b{color:var(--core);font-weight:800}
@@ -61,134 +76,172 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
   border:1px solid var(--seam);background:var(--panel);font-size:13px;font-weight:700;letter-spacing:.06em;
 }
 .themebtn:hover{border-color:var(--aura)}
+.skip{
+  position:absolute;left:-999px;top:0;background:var(--core);color:#1a0e02;
+  padding:12px 18px;border-radius:0 0 10px 0;font-weight:800;text-decoration:none;z-index:2000;
+}
+.skip:focus{left:0}
 
-.hero{position:relative;padding:72px 0 56px;text-align:left}
-.hum{position:absolute;inset:-40px -20px auto -20px;height:560px;pointer-events:none;z-index:-1}
-.hum .orb{
-  position:absolute;left:50%;top:120px;width:min(720px,110vw);height:min(720px,110vw);
-  transform:translateX(-50%);border-radius:50%;
-  background:radial-gradient(circle at 50% 42%,var(--core) 0%,var(--aura) 26%,transparent 62%);
-  opacity:.28;filter:blur(28px);
-  animation:hum 7s ease-in-out infinite;
+.hero{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:clamp(48px,10vw,110px) 22px 64px;
+  position:relative;min-height:calc(100vh - 82px);
 }
-.hum .orb.two{opacity:.12;animation-delay:-3.5s;filter:blur(60px)}
-@keyframes hum{
-  0%,100%{transform:translateX(-50%) scale(1);opacity:.28}
-  50%{transform:translateX(-50%) scale(1.09);opacity:.38}
+.hero h1{
+  font-size:clamp(48px,10vw,110px);line-height:.98;font-weight:900;letter-spacing:-.02em;margin-bottom:20px;max-width:900px;
 }
-.kicker{font-size:13px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:var(--volt);margin-bottom:18px}
-h1{
-  font-size:clamp(46px,9.5vw,96px);line-height:.98;font-weight:900;letter-spacing:-.02em;
-  margin-bottom:22px;
-}
-h1 .glow{
+.hero h1 .glow{
   background:linear-gradient(100deg,var(--core) 10%,var(--aura) 90%);
   -webkit-background-clip:text;background-clip:text;color:transparent;
 }
-.lede{font-size:clamp(18px,2.6vw,23px);max-width:640px;color:var(--dim);font-weight:600;margin-bottom:14px}
+.lede{font-size:clamp(18px,3vw,24px);color:var(--dim);font-weight:600;max-width:640px;margin-bottom:38px}
 .lede b{color:var(--ink)}
-.outputs{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0 30px;list-style:none}
-.outputs li{
-  padding:9px 15px;border-radius:999px;border:1px solid var(--seam);background:var(--panel);
-  font-size:14px;font-weight:700;
-}
-.outputs li b{color:var(--core)}
+
+.dropStage{width:100%;max-width:760px;margin:0 auto}
+.statepanel{display:none}
+body[data-state="idle"] .statepanel.idle{display:flex;flex-direction:column;align-items:center}
+body[data-state="dragover"] .statepanel.dragover{display:flex}
+body[data-state="uploading"] .statepanel.uploading{display:block}
+body[data-state="received"] .statepanel.received{display:block}
+body[data-state="error"] .statepanel.error{display:block}
+
 .cta{
-  display:inline-flex;align-items:center;gap:10px;text-decoration:none;
-  padding:16px 28px;border-radius:14px;font-weight:800;font-size:17px;
+  display:inline-flex;align-items:center;justify-content:center;gap:10px;text-decoration:none;
+  padding:16px 30px;border-radius:14px;font-weight:800;font-size:18px;letter-spacing:.01em;
   background:linear-gradient(100deg,var(--core),var(--aura));color:#1a0e02;
   box-shadow:0 8px 34px rgba(255,122,61,.34);
   transition:transform .18s ease,box-shadow .18s ease;
+  border:0;
 }
 .cta:hover{transform:translateY(-2px);box-shadow:0 14px 44px rgba(255,122,61,.44)}
+.cta:active{transform:translateY(0)}
 .cta svg{flex:none}
+.accepted{margin-top:18px;font-size:14px;color:var(--dim);font-weight:600}
+.accepted b{color:var(--ink)}
 
-section{padding:64px 0}
-h2{font-size:clamp(28px,5vw,44px);font-weight:900;letter-spacing:-.01em;margin-bottom:8px}
-.sub{color:var(--dim);max-width:560px;margin-bottom:36px;font-weight:600}
+.dragmsg{
+  display:flex;flex-direction:column;align-items:center;gap:12px;padding:38px 24px;border-radius:28px;
+  border:2px dashed var(--aura);background:color-mix(in srgb,var(--aura) 8%,transparent);
+  color:var(--ink);font-size:22px;font-weight:800;
+}
+.dragmsg small{color:var(--dim);font-weight:600;font-size:15px}
 
-/* demo strip */
-.demo{border:1px solid var(--seam);border-radius:20px;background:var(--card);padding:26px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
-.typeline{
-  display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:12px;
-  border:1px solid var(--seam);background:var(--panel);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  font-size:15px;min-height:52px;margin-bottom:22px;
-}
-.typeline .caret{display:inline-block;width:9px;height:1.15em;background:var(--volt);animation:blink 1s steps(1) infinite;vertical-align:text-bottom}
-@keyframes blink{50%{opacity:0}}
-.typeline .dropicon{flex:none;color:var(--core)}
-.cards{display:grid;gap:14px;grid-template-columns:1fr}
-@media(min-width:640px){.cards{grid-template-columns:repeat(2,1fr)}}
-@media(min-width:920px){.cards{grid-template-columns:repeat(4,1fr)}}
-.card{
-  border:1px solid var(--seam);border-radius:14px;background:var(--panel);padding:18px;
-  opacity:0;transform:translateY(14px);
-  transition:opacity .5s ease,transform .5s ease;
-}
-.card.show{opacity:1;transform:none}
-.card .tag{font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:var(--volt);margin-bottom:10px}
-.card h3{font-size:18px;font-weight:800;margin-bottom:6px}
-.card p{font-size:14px;color:var(--dim)}
-.card .thumb{
-  height:86px;border-radius:9px;margin-bottom:12px;
-  background:linear-gradient(135deg,var(--night-2),var(--seam));
-  display:flex;align-items:center;justify-content:center;color:var(--core);
-}
-.card.vert .thumb{background:linear-gradient(160deg,var(--night-2) 20%,var(--seam))}
-.receipt{
-  margin-top:14px;border:1px dashed var(--seam);border-radius:14px;background:var(--panel);padding:18px 20px;
-  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;
-  opacity:0;transform:translateY(14px);transition:opacity .5s ease .1s,transform .5s ease .1s;
-}
-.receipt.show{opacity:1;transform:none}
-.receipt .rline{display:flex;justify-content:space-between;gap:14px;padding:5px 0;color:var(--dim)}
-.receipt .rline.total{border-top:1px solid var(--seam);margin-top:8px;padding-top:12px;color:var(--ink);font-weight:800}
-.receipt .rline.total span:last-child{color:var(--core)}
+.uploadwrap{background:var(--panel);border:1px solid var(--seam);border-radius:24px;padding:28px;text-align:left}
+.uploadwrap h3{font-size:22px;font-weight:900;margin-bottom:10px}
+.uploadwrap .uinfo{font-size:14px;color:var(--dim);margin-bottom:22px;word-break:break-word}
+.progressTrack{height:12px;border-radius:999px;background:var(--seam);overflow:hidden;margin-bottom:18px}
+.progressFill{height:100%;width:0%;border-radius:999px;background:linear-gradient(90deg,var(--core),var(--aura));transition:width .2s ease}
+.progressStatus{font-size:14px;font-weight:800;color:var(--volt);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.progressStatus .stay{font-weight:600;color:var(--dim)}
 
-/* steps */
-.steps{list-style:none;display:grid;gap:14px;counter-reset:step}
-@media(min-width:760px){.steps{grid-template-columns:repeat(2,1fr)}}
-@media(min-width:980px){.steps{grid-template-columns:repeat(4,1fr)}}
-.steps li{border:1px solid var(--seam);border-radius:16px;background:var(--panel);padding:22px;counter-increment:step}
-.steps li::before{
-  content:counter(step,decimal-leading-zero);display:block;font-size:13px;font-weight:900;letter-spacing:.16em;
-  color:var(--aura);margin-bottom:12px;
+.receiptwrap{
+  background:var(--panel);border:1px solid var(--seam);border-radius:24px;padding:28px;text-align:left;
 }
-.steps h3{font-size:18px;font-weight:800;margin-bottom:7px}
-.steps p{font-size:14.5px;color:var(--dim)}
-
-/* pricing */
-.tiers{display:grid;gap:14px}
-@media(min-width:820px){.tiers{grid-template-columns:repeat(3,1fr)}}
-.tier{border:1px solid var(--seam);border-radius:18px;background:var(--panel);padding:26px;display:flex;flex-direction:column;gap:12px}
-.tier.hot{border-color:var(--aura);box-shadow:0 0 0 1px var(--aura),0 18px 50px rgba(255,122,61,.16)}
-.tier .name{font-size:13px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;color:var(--core)}
-.tier h3{font-size:22px;font-weight:900}
-.tier p{font-size:14.5px;color:var(--dim);flex:1}
-.tier .price{
-  font-size:13px;font-weight:700;border-top:1px solid var(--seam);padding-top:14px;color:var(--dim);
+.receiptwrap .badge{display:inline-block;font-size:12px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:var(--volt);margin-bottom:16px}
+.receiptwrap h3{font-size:28px;font-weight:900;margin-bottom:20px}
+.receiptgrid{display:grid;gap:12px;border-top:1px solid var(--seam);padding-top:20px;margin-bottom:22px}
+.rrow{display:flex;justify-content:space-between;gap:12px;font-size:15px;color:var(--dim)}
+.rrow span:first-child{font-weight:700}
+.rrow span:last-child{color:var(--ink);font-weight:800;word-break:break-all;text-align:right}
+.emailform{background:var(--card);border:1px solid var(--seam);border-radius:18px;padding:20px;margin-bottom:16px}
+.emailform label{display:block;font-weight:800;margin-bottom:10px}
+.emailform input{
+  width:100%;padding:14px 16px;border-radius:12px;border:1px solid var(--seam);background:var(--panel);
+  color:var(--ink);font:inherit;margin-bottom:12px;
 }
-.tier .price b{color:var(--volt)}
+.emailform input:focus{border-color:var(--volt);outline:none}
+.savebtn{background:var(--ink);color:var(--night);font-weight:800;padding:12px 22px;border-radius:12px;border:0}
+.savebtn:hover{background:var(--core);color:#1a0e02}
+.savebtn:disabled{opacity:.5;cursor:wait}
+.savestatus{font-size:13px;font-weight:700;margin-top:10px;color:var(--ok)}
+.stepsmini{display:grid;gap:10px;list-style:none;counter-reset:mini;margin-top:8px}
+.stepsmini li{
+  counter-increment:mini;background:var(--card);border:1px solid var(--seam);border-radius:14px;
+  padding:16px;display:flex;gap:14px;align-items:flex-start;
+}
+.stepsmini li::before{
+  content:counter(mini,decimal-leading-zero);flex:none;font-weight:900;color:var(--aura);font-size:14px;
+  margin-top:3px;
+}
+.stepsmini h4{font-size:16px;font-weight:800;margin-bottom:4px}
+.stepsmini p{font-size:14px;color:var(--dim)}
 
-/* footer */
+.errorcard{background:var(--panel);border:1px solid var(--bad);border-radius:24px;padding:28px;text-align:center}
+.errorcard h3{color:var(--bad);font-size:24px;font-weight:900;margin-bottom:12px}
+.errorcard p{color:var(--dim);margin-bottom:24px}
+.retrybtn{background:transparent;border:1px solid var(--seam);color:var(--ink);font-weight:800;padding:12px 24px;border-radius:12px}
+.retrybtn:hover{border-color:var(--aura)}
+
+.dropoverlay{
+  display:none;position:fixed;inset:0;z-index:1000;background:color-mix(in srgb,var(--night) 86%,transparent);
+  backdrop-filter:blur(4px);align-items:center;justify-content:center;text-align:center;pointer-events:none;
+}
+body[data-state="dragover"] .dropoverlay{display:flex;pointer-events:auto}
+.dropoverlay .inner{
+  padding:48px;border-radius:30px;border:2px dashed var(--core);background:color-mix(in srgb,var(--panel) 94%,transparent);
+  box-shadow:0 24px 80px rgba(0,0,0,.3);
+}
+.dropoverlay .big{font-size:clamp(32px,8vw,72px);font-weight:900}
+.dropoverlay .small{color:var(--dim);font-weight:600;margin-top:8px;font-size:18px}
+
+section.pad{padding:70px 0}
+section.pad h2{font-size:clamp(30px,5vw,48px);font-weight:900;letter-spacing:-.01em;margin-bottom:12px}
+.subline{font-size:18px;color:var(--dim);font-weight:600;max-width:560px;margin-bottom:32px}
+
+.features{display:grid;gap:14px;grid-template-columns:1fr;margin-top:20px}
+@media(min-width:640px){.features{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:980px){.features{grid-template-columns:repeat(3,1fr)}}
+.feature{background:var(--panel);border:1px solid var(--seam);border-radius:18px;padding:24px}
+.feature .ftag{font-size:12px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;color:var(--volt);margin-bottom:12px}
+.feature h3{font-size:20px;font-weight:800;margin-bottom:8px}
+.feature p{font-size:15px;color:var(--dim)}
+.feature .icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--core) 14%,transparent);color:var(--core);margin-bottom:14px}
+
+.steps3{list-style:none;display:grid;gap:14px;counter-reset:step3}
+@media(min-width:740px){.steps3{grid-template-columns:repeat(3,1fr)}}
+.steps3 li{background:var(--panel);border:1px solid var(--seam);border-radius:18px;padding:24px;counter-increment:step3}
+.steps3 li::before{content:counter(step3,decimal-leading-zero);font-size:14px;font-weight:900;letter-spacing:.16em;color:var(--aura);display:block;margin-bottom:14px}
+.steps3 h3{font-size:18px;font-weight:800;margin-bottom:8px}
+.steps3 p{font-size:14.5px;color:var(--dim)}
+
+.pricenote{
+  background:var(--panel);border:1px solid var(--seam);border-radius:20px;padding:28px;text-align:center;
+  font-weight:800;color:var(--dim);font-size:18px;
+}
+.pricenote b{color:var(--core);display:block;font-size:22px;margin-bottom:8px}
+
 footer{border-top:1px solid var(--seam);padding:44px 0 54px;text-align:center}
-footer .made{font-size:15px;font-weight:800;margin-bottom:8px}
-footer .made b{color:var(--core)}
-footer .by{font-size:13px;color:var(--dim);letter-spacing:.14em;text-transform:uppercase;font-weight:700}
-footer .by b{color:var(--ink)}
+footer p{color:var(--dim);font-size:14px;font-weight:600}
+footer b{color:var(--core)}
 
-@media (prefers-reduced-motion: reduce){
+.toast{
+  position:fixed;right:22px;bottom:22px;background:var(--panel);border:1px solid var(--seam);
+  color:var(--ink);padding:16px 20px;border-radius:14px;font-weight:700;box-shadow:0 8px 30px rgba(0,0,0,.35);
+  display:flex;align-items:center;gap:10px;opacity:0;transform:translateY(8px);pointer-events:none;
+  transition:opacity .3s ease,transform .3s ease;z-index:1100;
+}
+.toast.show{opacity:1;transform:none;pointer-events:auto}
+.toast .ok{color:var(--ok);font-size:20px}
+
+@media(prefers-reduced-motion: reduce){
   html{scroll-behavior:auto}
-  .hum .orb{animation:none}
-  .typeline .caret{animation:none}
-  .card,.receipt{transition:none;opacity:1;transform:none}
-  .cta{transition:none}
+  *{animation:none!important;transition:none!important}
+  .progressFill{transition:none}
+  .toast{transition:none}
+  body[data-state="dragover"] .dropoverlay{display:flex}
+  body[data-state="dragover"] .dropoverlay .inner{animation:none}
+}
+@media (max-width:600px){
+  .chrome{padding:16px 0}
+  .brand{letter-spacing:.05em}
+  .themebtn span{display:none}
 }
 </style>
 </head>
-<body>
+<body data-state="idle">
+<a class="skip" href="#main">Skip to main content</a>
 <header class="wrap chrome">
-  <a class="brand" href="#top" aria-label="GLOWHUM home">
+  <a class="brand" href="#main" aria-label="GLOWHUM home">
     <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true">
       <circle cx="16" cy="16" r="13" fill="none" stroke="#ff7a3d" stroke-width="2.4" opacity=".55"/>
       <circle cx="16" cy="16" r="7.5" fill="#ffb454"/>
@@ -207,134 +260,158 @@ footer .by b{color:var(--ink)}
   </button>
 </header>
 
-<main id="top">
-  <section class="hero wrap" aria-label="Introduction">
-    <div class="hum" aria-hidden="true"><div class="orb"></div><div class="orb two"></div></div>
-    <p class="kicker">Glow is the picture. Hum is the sound.</p>
-    <h1><span class="glow">GLOW</span>HUM</h1>
-    <p class="lede">Drop a topic or a research report. Get a <b>finished long form episode</b> plus <b>three vertical cuts</b>, published to YouTube, TikTok and Shorts. No human in the loop unless you want one.</p>
-    <ul class="outputs" aria-label="What you get">
-      <li><b>1</b> long form episode</li>
-      <li><b>3</b> vertical cuts</li>
-      <li>Posted to <b>YouTube, TikTok, Shorts</b></li>
-      <li><b>Unit cost</b> on every receipt</li>
-    </ul>
-    <a class="cta" href="mailto:hello@glowhum.com?subject=Drop%20a%20report%20into%20GLOWHUM">
-      Drop a report
-      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-        <path d="M3 9h11M10 4.5 14.5 9 10 13.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </a>
-  </section>
+<main id="main">
+  <section class="hero wrap" aria-label="Drop zone">
+    <h1><span class="glow">Drop a report.</span> Get an episode.</h1>
+    <p class="lede">Your topic or research report becomes a <b>finished long form episode</b> plus <b>three vertical cuts</b> for your channels.</p>
 
-  <section class="wrap" aria-label="Demo">
-    <h2>Watch a drop become a channel</h2>
-    <p class="sub">One topic in. A finished episode, three verticals and a receipt out.</p>
-    <div class="demo">
-      <div class="typeline" aria-live="polite">
-        <svg class="dropicon" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
-          <path d="M9 2v9M4.5 7.5 9 12l4.5-4.5M3 15.5h12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span id="typed"></span><span class="caret" id="caret"></span>
+    <div class="dropStage">
+      <div class="statepanel idle" id="idlePanel">
+        <input type="file" id="fileInput" accept=".pdf,.docx,.pptx,.md,.txt" hidden>
+        <button type="button" class="cta" id="chooseBtn">
+          Choose a file
+          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+            <path d="M3 9h11M10 4.5 14.5 9 10 13.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <p class="accepted">PDF, DOCX, PPTX, MD, TXT <b>up to 200 MB</b></p>
       </div>
-      <div class="cards" id="cards">
-        <div class="card">
-          <div class="tag">Long form</div>
-          <div class="thumb" aria-hidden="true">
-            <svg width="34" height="34" viewBox="0 0 34 34"><rect x="3" y="6" width="28" height="22" rx="4" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M14 12.5v9l8-4.5z" fill="currentColor"/></svg>
-          </div>
-          <h3>The episode</h3>
-          <p>Scripted from cited research, voiced, shot, cut and captioned on our own lanes.</p>
-        </div>
-        <div class="card vert">
-          <div class="tag">Vertical one</div>
-          <div class="thumb" aria-hidden="true">
-            <svg width="34" height="34" viewBox="0 0 34 34"><rect x="9" y="3" width="16" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15 14v7l6-3.5z" fill="currentColor"/></svg>
-          </div>
-          <h3>Cut one</h3>
-          <p>The strongest beat, reframed for the feed and posted to TikTok and Shorts.</p>
-        </div>
-        <div class="card vert">
-          <div class="tag">Vertical two</div>
-          <div class="thumb" aria-hidden="true">
-            <svg width="34" height="34" viewBox="0 0 34 34"><rect x="9" y="3" width="16" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15 14v7l6-3.5z" fill="currentColor"/></svg>
-          </div>
-          <h3>Cut two</h3>
-          <p>The second beat stands alone, with its own hook and on screen citation.</p>
-        </div>
-        <div class="card vert">
-          <div class="tag">Vertical three</div>
-          <div class="thumb" aria-hidden="true">
-            <svg width="34" height="34" viewBox="0 0 34 34"><rect x="9" y="3" width="16" height="28" rx="4" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M15 14v7l6-3.5z" fill="currentColor"/></svg>
-          </div>
-          <h3>Cut three</h3>
-          <p>The close becomes the teaser that points back to the full episode.</p>
+
+      <div class="statepanel dragover" id="dragPanel" aria-live="polite">
+        <div class="dragmsg">
+          <svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true"><path d="M22 8v16M13 17l9 9 9-9M12 32h20" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Drop the file anywhere
+          <small>PDF, DOCX, PPTX, MD or TXT, up to 200 MB</small>
         </div>
       </div>
-      <div class="receipt" id="receipt" aria-label="Receipt">
-        <div class="rline"><span>GLOWHUM receipt</span><span>your drop</span></div>
-        <div class="rline"><span>Episode plus three verticals</span><span>published</span></div>
-        <div class="rline"><span>YouTube, TikTok, Shorts</span><span>live links attached</span></div>
-        <div class="rline total"><span>Unit cost</span><span>printed here at publish time</span></div>
+
+      <div class="statepanel uploading" id="uploadPanel" role="status" aria-live="polite">
+        <div class="uploadwrap">
+          <h3>Uploading your report</h3>
+          <p class="uinfo" id="uploadName"></p>
+          <div class="progressTrack" aria-hidden="true">
+            <div class="progressFill" id="progressFill" style="width:0%"></div>
+          </div>
+          <div class="progressStatus">
+            <span id="progressText">0%</span>
+            <span class="stay">please keep this tab open</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="statepanel received" id="receivedPanel" aria-live="polite">
+        <div class="receiptwrap">
+          <span class="badge">Received</span>
+          <h3>Your episode is queued</h3>
+          <div class="receiptgrid">
+            <div class="rrow"><span>Episode ID</span><span id="recId" data-testid="episode-id"></span></div>
+            <div class="rrow"><span>File name</span><span id="recName" data-testid="file-name"></span></div>
+            <div class="rrow"><span>Size</span><span id="recSize" data-testid="file-size"></span></div>
+            <div class="rrow"><span>SHA256</span><span id="recHash" data-testid="file-sha"></span></div>
+          </div>
+          <div class="emailform" data-testid="email-form">
+            <label for="emailInput">Where should the episode go?</label>
+            <input type="email" id="emailInput" name="email" placeholder="you@example.com" autocomplete="email">
+            <button type="button" class="savebtn" id="saveEmail">Save</button>
+            <div class="savestatus" id="emailStatus" aria-live="polite"></div>
+          </div>
+          <h4 style="font-weight:900;margin:4px 0 10px;font-size:16px">What happens next</h4>
+          <ol class="stepsmini" aria-label="Next steps">
+            <li><div><h4>We turn your file into a script</h4><p>Every claim is checked before anything is written.</p></div></li>
+            <li><div><h4>We produce an episode plus three verticals</h4><p>Long form goes to YouTube, verticals to TikTok and Shorts.</p></div></li>
+            <li><div><h4>You get a receipt with the unit cost</h4><p>The episode lands on your channels with live links attached.</p></div></li>
+          </ol>
+        </div>
+      </div>
+
+      <div class="statepanel error" id="errorPanel" role="alert">
+        <div class="errorcard">
+          <h3>Something went wrong</h3>
+          <p id="errorMsg">Please try again.</p>
+          <button type="button" class="retrybtn" id="retryBtn">Try again</button>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="wrap" aria-label="How it works">
+  <section class="wrap pad" aria-label="What you get">
+    <h2>What you get</h2>
+    <p class="subline">One drop becomes a full channel moment.</p>
+    <div class="features">
+      <div class="feature">
+        <div class="icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10.5 9.5v5l4-2.5z" fill="currentColor"/></svg>
+        </div>
+        <div class="ftag">Long form</div>
+        <h3>The episode</h3>
+        <p>A scripted, narrated and captioned long form video based on your report.</p>
+      </div>
+      <div class="feature">
+        <div class="icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M11 10.5v3l2-1.5z" fill="currentColor"/></svg>
+        </div>
+        <div class="ftag">Vertical cuts</div>
+        <h3>Three shorts</h3>
+        <p>Three stand alone cuts designed for TikTok and Shorts, each with its own hook.</p>
+      </div>
+      <div class="feature">
+        <div class="icon" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24"><path d="M4 11a8 8 0 0 1 16 0M3 11h4l1-3 2 6 2-9 2 9 2-4 2 1h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="ftag">Publishing</div>
+        <h3>Channels updated</h3>
+        <p>YouTube, TikTok and Shorts receive the finished pieces automatically when possible.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap pad" aria-label="How it works">
     <h2>How it works</h2>
-    <p class="sub">Four steps from your drop to a published channel format episode.</p>
-    <ol class="steps">
+    <p class="subline">Three steps from file to published episode.</p>
+    <ol class="steps3">
       <li>
-        <h3>Drop it in</h3>
-        <p>Hand GLOWHUM a topic or a research report. A topic triggers grounded research with a citation check before anything is written.</p>
+        <h3>Drop a report</h3>
+        <p>Choose a PDF, DOCX, PPTX, MD or TXT file, or drag it anywhere on this page. Up to 200 MB.</p>
       </li>
       <li>
-        <h3>Script and shot table</h3>
-        <p>The report becomes an episode skeleton with beats and timings, then a shot table where every shot carries its lane and its source.</p>
+        <h3>GLOWHUM produces</h3>
+        <p>The report becomes a script, a voice, visuals and captions, cut into one long form and three verticals.</p>
       </li>
       <li>
-        <h3>Produce on our lanes</h3>
-        <p>Voice, motion, screen records, cut, captions and music run on our own GPU lanes. Claims keep their citations on screen.</p>
-      </li>
-      <li>
-        <h3>Publish and receipt</h3>
-        <p>The episode goes to YouTube, three verticals go to TikTok and Shorts, and you get a receipt with the unit cost printed on it.</p>
+        <h3>Get the receipt</h3>
+        <p>Episodes are posted to YouTube, TikTok and Shorts. The receipt prints the exact unit cost for that drop.</p>
       </li>
     </ol>
   </section>
 
-  <section class="wrap" aria-label="Pricing">
+  <section class="wrap pad" aria-label="Pricing">
     <h2>Pricing</h2>
-    <p class="sub">Launch pricing lands with the first public episode.</p>
-    <div class="tiers">
-      <div class="tier">
-        <div class="name">Drop</div>
-        <h3>One episode</h3>
-        <p>Drop a topic or a report. Receive one long form episode and three vertical cuts, published to your channels, receipt included.</p>
-        <div class="price"><b>Launch pricing lands with the first public episode.</b> Unit cost printed on every receipt.</div>
-      </div>
-      <div class="tier hot">
-        <div class="name">Channel</div>
-        <h3>A running format</h3>
-        <p>Your channel on a cadence. Every new report in the drop folder becomes an episode and three verticals, unattended, with a human review step if you want one.</p>
-        <div class="price"><b>Launch pricing lands with the first public episode.</b> Unit cost printed on every receipt.</div>
-      </div>
-      <div class="tier">
-        <div class="name">Studio</div>
-        <h3>The full creative studio</h3>
-        <p>Next on the roadmap. A complete creative studio for operators, running on our own GPU lanes with the same published cost table.</p>
-        <div class="price"><b>Launch pricing lands with the first public episode.</b> Unit cost printed on every receipt.</div>
-      </div>
+    <p class="subline">Clear cost, printed on every receipt.</p>
+    <div class="pricenote">
+      <b>Launch pricing lands with the first public episode.</b>
+      Unit cost printed on every receipt.
     </div>
   </section>
 </main>
 
 <footer>
   <div class="wrap">
-    <p class="made">Made with <b>GLOWHUM</b></p>
-    <p class="by">Glowhum by <b>NOMOI</b></p>
+    <p>Made with <b>GLOWHUM</b></p>
+    <p>Glowhum by <b>NOMOI</b></p>
   </div>
 </footer>
+
+<div class="dropoverlay" id="dropOverlay" aria-hidden="true">
+  <div class="inner">
+    <div class="big">Drop it</div>
+    <div class="small">Release to start</div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite">
+  <span class="ok" aria-hidden="true">✓</span>
+  <span id="toastText">Done</span>
+</div>
 
 <script>
 (function(){
@@ -355,41 +432,214 @@ footer .by b{color:var(--ink)}
   });
   paint();
 
-  var reduced=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  var topic="why the power grid hums at night";
-  var typedEl=document.getElementById("typed");
-  var cards=Array.prototype.slice.call(document.querySelectorAll("#cards .card"));
-  var receipt=document.getElementById("receipt");
-  var started=false;
+  var body=document.body;
+  var fileInput=document.getElementById("fileInput");
+  var chooseBtn=document.getElementById("chooseBtn");
+  var retryBtn=document.getElementById("retryBtn");
+  var errorMsg=document.getElementById("errorMsg");
+  var uploadName=document.getElementById("uploadName");
+  var progressFill=document.getElementById("progressFill");
+  var progressText=document.getElementById("progressText");
+  var recId=document.getElementById("recId");
+  var recName=document.getElementById("recName");
+  var recSize=document.getElementById("recSize");
+  var recHash=document.getElementById("recHash");
+  var emailInput=document.getElementById("emailInput");
+  var saveEmail=document.getElementById("saveEmail");
+  var emailStatus=document.getElementById("emailStatus");
+  var toast=document.getElementById("toast");
+  var toastText=document.getElementById("toastText");
 
-  function revealAll(){
-    cards.forEach(function(c){c.classList.add("show")});
-    receipt.classList.add("show");
+  var MAX_SIZE=200*1024*1024;
+  var ALLOWED_EXT=[".pdf",".docx",".pptx",".md",".txt"];
+
+  function setState(s){
+    body.setAttribute("data-state",s);
+    if(s==="idle"){
+      fileInput.value="";
+    }
   }
-  function run(){
-    if(started)return;started=true;
-    if(reduced){typedEl.textContent=topic;revealAll();return}
-    var i=0;
-    (function type(){
-      if(i<=topic.length){
-        typedEl.textContent=topic.slice(0,i);i++;
-        setTimeout(type,42);
-      }else{
-        setTimeout(function(){
-          cards.forEach(function(c,idx){
-            setTimeout(function(){c.classList.add("show")},idx*260);
-          });
-          setTimeout(function(){receipt.classList.add("show")},cards.length*260+220);
-        },320);
+  setState("idle");
+
+  function showToast(msg){
+    toastText.textContent=msg;
+    toast.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t=setTimeout(function(){toast.classList.remove("show")},4200);
+  }
+
+  function humanSize(bytes){
+    if(bytes<1024)return bytes+" B";
+    if(bytes<1024*1024)return (bytes/1024).toFixed(1)+" KB";
+    return (bytes/(1024*1024)).toFixed(1)+" MB";
+  }
+  function extOk(name){
+    var low=name.toLowerCase();
+    return ALLOWED_EXT.some(function(e){return low.endsWith(e)});
+  }
+
+  chooseBtn.addEventListener("click",function(){fileInput.click()});
+  retryBtn.addEventListener("click",function(){
+    setState("idle");
+    setTimeout(function(){fileInput.click()},0);
+  });
+  fileInput.addEventListener("change",function(){
+    if(fileInput.files && fileInput.files[0]){
+      handleFile(fileInput.files[0]);
+    }
+  });
+
+  var dragCount=0;
+  window.addEventListener("dragenter",function(e){
+    e.preventDefault();
+    dragCount++;
+    body.setAttribute("data-state","dragover");
+  });
+  window.addEventListener("dragleave",function(e){
+    e.preventDefault();
+    dragCount=Math.max(0,dragCount-1);
+    if(dragCount===0 && body.getAttribute("data-state")==="dragover"){
+      if(body.getAttribute("data-state")!=="uploading" && body.getAttribute("data-state")!=="received" && body.getAttribute("data-state")!=="error"){
+        setState("idle");
       }
-    })();
+    }
+  });
+  window.addEventListener("dragover",function(e){e.preventDefault()});
+  window.addEventListener("drop",function(e){
+    e.preventDefault();
+    dragCount=0;
+    if(body.getAttribute("data-state")==="uploading" || body.getAttribute("data-state")==="received")return;
+    setState("idle");
+    var files=e.dataTransfer && e.dataTransfer.files;
+    if(files && files.length){handleFile(files[0]);}
+  });
+
+  function enableSelect(){setState("idle")}
+
+  function handleFile(file){
+    if(file.size>MAX_SIZE){
+      errorMsg.textContent="This file is larger than 200 MB. Choose a smaller file and try again.";
+      setState("error");
+      return;
+    }
+    if(!extOk(file.name)){
+      errorMsg.textContent="This file type is not supported. Please upload a PDF, DOCX, PPTX, MD or TXT file.";
+      setState("error");
+      return;
+    }
+    startUpload(file);
   }
-  if("IntersectionObserver" in window){
-    var io=new IntersectionObserver(function(entries){
-      entries.forEach(function(en){if(en.isIntersecting){run();io.disconnect()}});
-    },{threshold:.3});
-    io.observe(document.querySelector(".demo"));
-  }else{run()}
+
+  function startUpload(file){
+    uploadName.textContent=file.name + "  (" + humanSize(file.size) + ")";
+    progressFill.style.width="0%";
+    progressText.textContent="0%";
+    setState("uploading");
+
+    var xhr=new XMLHttpRequest();
+    xhr.open("POST","/api/drop",true);
+    xhr.setRequestHeader("X-File-Name",file.name);
+    xhr.setRequestHeader("X-File-Size",String(file.size));
+    xhr.responseType="json";
+
+    xhr.upload.addEventListener("progress",function(e){
+      if(e.lengthComputable){
+        var pct=Math.round((e.loaded/e.total)*100);
+        progressFill.style.width=pct+"%";
+        progressText.textContent=pct+"%";
+      } else {
+        progressText.textContent="…";
+      }
+    });
+
+    xhr.addEventListener("load",function(){
+      if(xhr.status>=200 && xhr.status<300){
+        var data=xhr.response||{};
+        if(typeof data==="string"){try{data=JSON.parse(data)}catch(e){data={}}}
+        if(!data.id || !data.name){
+          errorMsg.textContent="The server returned an incomplete receipt. Please try again.";
+          setState("error");
+          return;
+        }
+        showReceived(data);
+      } else {
+        var msg=(xhr.response && (xhr.response.error||xhr.response.message)) || "Upload failed with status "+xhr.status+". Please try again.";
+        errorMsg.textContent=msg;
+        setState("error");
+      }
+    });
+    xhr.addEventListener("error",function(){
+      errorMsg.textContent="Network error. Please check your connection and try again.";
+      setState("error");
+    });
+    xhr.addEventListener("abort",function(){
+      errorMsg.textContent="Upload was cancelled. Please try again.";
+      setState("error");
+    });
+
+    xhr.send(file);
+  }
+
+  function showReceived(data){
+    recId.textContent=data.id;
+    recName.textContent=data.name;
+    recSize.textContent=humanSize(Number(data.size)||0);
+    recHash.textContent=data.sha256 ? data.sha256.slice(0,16)+"…" : "—";
+    emailStatus.textContent="";
+    emailInput.value="";
+    saveEmail.disabled=false;
+    setState("received");
+    showToast("Report received. Episode queued.");
+  }
+
+  function validateEmail(email){
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  saveEmail.addEventListener("click",function(){
+    emailStatus.textContent="";
+    var email=emailInput.value.trim();
+    if(!email){
+      emailStatus.style.color="var(--bad)";
+      emailStatus.textContent="Please enter an email.";
+      return;
+    }
+    if(!validateEmail(email)){
+      emailStatus.style.color="var(--bad)";
+      emailStatus.textContent="That email does not look right.";
+      return;
+    }
+    var id=recId.textContent;
+    if(!id){
+      emailStatus.style.color="var(--bad)";
+      emailStatus.textContent="Episode ID missing. Please try again.";
+      return;
+    }
+    saveEmail.disabled=true;
+    var xhr=new XMLHttpRequest();
+    xhr.open("POST","/api/drop/"+encodeURIComponent(id)+"/email",true);
+    xhr.setRequestHeader("Content-Type","application/json");
+    xhr.responseType="json";
+    xhr.onload=function(){
+      if(xhr.status>=200 && xhr.status<300){
+        emailStatus.style.color="var(--ok)";
+        emailStatus.textContent="Saved. We will send the episode to "+email+".";
+        emailInput.disabled=true;
+        saveEmail.style.display="none";
+      } else {
+        emailStatus.style.color="var(--bad)";
+        var msg=(xhr.response && (xhr.response.error||xhr.response.message)) || "Could not save that email. Please try again.";
+        emailStatus.textContent=msg;
+        saveEmail.disabled=false;
+      }
+    };
+    xhr.onerror=function(){
+      emailStatus.style.color="var(--bad)";
+      emailStatus.textContent="Network error. Please try again.";
+      saveEmail.disabled=false;
+    };
+    xhr.send(JSON.stringify({email:email}));
+  });
 })();
 </script>
 </body>
