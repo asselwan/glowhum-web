@@ -16,6 +16,11 @@ const DROP_MAX_BYTES = Number(process.env.DROP_MAX_BYTES) || 200 * 1024 * 1024;
 const EPISODE_PRICE_AED = positiveInteger(process.env.GLOWHUM_EPISODE_PRICE_AED, 199);
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
+const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || "";
+const STRIPE_ALLOW_LIVE = process.env.STRIPE_ALLOW_LIVE === "true";
+const STRIPE_API_BASE_URL = process.env.NODE_ENV === "test"
+  ? process.env.STRIPE_API_BASE_URL || "https://api.stripe.com/v1"
+  : "https://api.stripe.com/v1";
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || "";
 
 const ID_ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz";
@@ -24,7 +29,7 @@ const RATE_LIMIT_MAX = 20;
 const WEBHOOK_MAX_BYTES = 1024 * 1024;
 const WEBHOOK_TOLERANCE_SECONDS = 5 * 60;
 const ORDER_PRODUCT_MARKER = "glowhum_one_episode_v1";
-const ORDER_STATUSES = new Set(["paid", "rendering", "published"]);
+const ORDER_STATUSES = new Set(["paid", "rendering", "published", "refunded"]);
 
 const mimeByExt = {
   ".html": "text/html; charset=utf-8",
@@ -92,6 +97,29 @@ function validEventId(id) {
   return typeof id === "string" && /^evt_[A-Za-z0-9_]+$/.test(id);
 }
 
+function validPaymentIntentId(id) {
+  return typeof id === "string" && /^pi_[A-Za-z0-9_]+$/.test(id);
+}
+
+function validPriceId(id) {
+  return typeof id === "string" && /^price_[A-Za-z0-9_]+$/.test(id);
+}
+
+function stripeKeyMode() {
+  if (/^(sk|rk)_test_/.test(STRIPE_SECRET_KEY)) return "test";
+  if (/^(sk|rk)_live_/.test(STRIPE_SECRET_KEY)) return "live";
+  return "unknown";
+}
+
+function stripeIsReady() {
+  const mode = stripeKeyMode();
+  return validPriceId(STRIPE_PRICE_ID) && (mode === "test" || (mode === "live" && STRIPE_ALLOW_LIVE));
+}
+
+function expectedStripeLivemode() {
+  return stripeKeyMode() === "live";
+}
+
 function safeText(value, maxLength) {
   if (typeof value !== "string") return "";
   const text = value.trim();
@@ -156,15 +184,17 @@ async function createCheckoutSession(order, baseUrl) {
     success_url: `${baseUrl}/order?order_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${baseUrl}/?checkout=cancelled`,
     "line_items[0][quantity]": "1",
-    "line_items[0][price_data][currency]": "aed",
-    "line_items[0][price_data][unit_amount]": String(EPISODE_PRICE_AED * 100),
-    "line_items[0][price_data][product_data][name]": "One episode",
+    "line_items[0][price]": STRIPE_PRICE_ID,
     "metadata[email]": order.email,
     "metadata[glowhum_product]": ORDER_PRODUCT_MARKER,
+    "metadata[glowhum_price]": STRIPE_PRICE_ID,
+    "metadata[is_test]": String(stripeKeyMode() === "test"),
     "metadata[topic]": order.topic || "",
     "metadata[report_url]": order.reportUrl || "",
+    "payment_intent_data[metadata][glowhum_product]": ORDER_PRODUCT_MARKER,
+    "payment_intent_data[metadata][is_test]": String(stripeKeyMode() === "test"),
   });
-  const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+  const response = await fetch(`${STRIPE_API_BASE_URL}/checkout/sessions`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
@@ -218,11 +248,17 @@ function jobFromCheckoutSession(session, event) {
     topic: safeText(metadata.topic, 500) || null,
     report_url: safeText(metadata.report_url, 500) || null,
     price_aed: EPISODE_PRICE_AED,
+    stripe_price_id: STRIPE_PRICE_ID,
+    payment_intent_id: session.payment_intent,
+    product: ORDER_PRODUCT_MARKER,
+    is_test: !session.livemode,
     created_at: createdAt,
     status: "paid",
     event_id: event.id,
     video_url: null,
     published_at: null,
+    refunded_at: null,
+    refund_event_id: null,
   };
 }
 
@@ -236,6 +272,18 @@ function receiptPath(orderId) {
 
 function eventPath(eventId) {
   return path.join(GLOWHUM_DROPS_DIR, "events", `${eventId}.json`);
+}
+
+function paymentPath(paymentIntentId) {
+  return path.join(GLOWHUM_DROPS_DIR, "payments", `${paymentIntentId}.json`);
+}
+
+function entitlementPath(orderId) {
+  return path.join(GLOWHUM_DROPS_DIR, "entitlements", `${orderId}.json`);
+}
+
+function revocationPath(orderId) {
+  return path.join(GLOWHUM_DROPS_DIR, "revocations", `${orderId}.json`);
 }
 
 async function writeImmutableFile(destination, contents) {
@@ -274,6 +322,61 @@ async function claimEvent(eventId, orderId) {
   }
 }
 
+async function writeJsonAtomic(destination, value) {
+  await fs.mkdir(path.dirname(destination), { recursive: true });
+  const temporary = `${destination}.tmp-${crypto.randomBytes(8).toString("hex")}`;
+  await fs.writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { flag: "wx" });
+  try {
+    await fs.rename(temporary, destination);
+  } finally {
+    await fs.rm(temporary, { force: true }).catch(() => {});
+  }
+}
+
+async function bindPayment(job) {
+  const binding = `${JSON.stringify({
+    payment_intent_id: job.payment_intent_id,
+    order_id: job.order_id,
+    product: ORDER_PRODUCT_MARKER,
+  })}\n`;
+  try {
+    await writeImmutableFile(paymentPath(job.payment_intent_id), binding);
+  } catch (error) {
+    if (error?.code === "CONFLICT") {
+      const conflict = new Error("PaymentIntent is already bound to another order");
+      conflict.code = "PAYMENT_CONFLICT";
+      throw conflict;
+    }
+    throw error;
+  }
+}
+
+async function grantEntitlement(job) {
+  const entitlement = {
+    entitlement_id: job.order_id,
+    order_id: job.order_id,
+    payment_intent_id: job.payment_intent_id,
+    product: ORDER_PRODUCT_MARKER,
+    status: "active",
+    is_test: job.is_test,
+    granted_at: job.created_at,
+    granted_by_event_id: job.event_id,
+    revoked_at: null,
+    revoked_by_event_id: null,
+  };
+  try {
+    await writeImmutableFile(entitlementPath(job.order_id), `${JSON.stringify(entitlement, null, 2)}\n`);
+  } catch (error) {
+    if (error?.code !== "CONFLICT") throw error;
+    const existing = JSON.parse(await fs.readFile(entitlementPath(job.order_id), "utf8"));
+    if (existing.order_id !== job.order_id || existing.payment_intent_id !== job.payment_intent_id) {
+      const conflict = new Error("Entitlement is already bound to another payment");
+      conflict.code = "ENTITLEMENT_CONFLICT";
+      throw conflict;
+    }
+  }
+}
+
 function requestContents(job) {
   return Buffer.from(`${JSON.stringify({ topic: job.topic, report_url: job.report_url }, null, 2)}\n`, "utf8");
 }
@@ -291,6 +394,8 @@ async function writeOrderOnce(job) {
   };
   await fs.mkdir(directory, { recursive: true });
   await writeImmutableFile(path.join(directory, "request.md"), request);
+  await bindPayment(job);
+  await grantEntitlement(job);
   const receiptContents = `${JSON.stringify(receipt, null, 2)}\n`;
   try {
     const result = await writeImmutableFile(receiptPath(job.order_id), receiptContents);
@@ -303,6 +408,66 @@ async function writeOrderOnce(job) {
     conflict.code = "ORDER_CONFLICT";
     throw conflict;
   }
+}
+
+async function findOrderForPayment(paymentIntentId) {
+  try {
+    const binding = JSON.parse(await fs.readFile(paymentPath(paymentIntentId), "utf8"));
+    if (binding.payment_intent_id !== paymentIntentId || !validOrderId(binding.order_id)) return null;
+    return binding.order_id;
+  } catch {
+    return null;
+  }
+}
+
+async function claimRevocation(orderId, event, refundedAt) {
+  const revocation = {
+    order_id: orderId,
+    refund_event_id: event.id,
+    refunded_at: refundedAt,
+  };
+  try {
+    const result = await writeImmutableFile(revocationPath(orderId), `${JSON.stringify(revocation, null, 2)}\n`);
+    return { created: result.created, revocation };
+  } catch (error) {
+    if (error?.code !== "CONFLICT") throw error;
+    const existing = JSON.parse(await fs.readFile(revocationPath(orderId), "utf8"));
+    if (existing.order_id !== orderId || !validEventId(existing.refund_event_id)) throw error;
+    return { created: false, revocation: existing };
+  }
+}
+
+async function revokeEntitlement(orderId, paymentIntentId, revocation) {
+  const entitlement = JSON.parse(await fs.readFile(entitlementPath(orderId), "utf8"));
+  if (entitlement.order_id !== orderId || entitlement.payment_intent_id !== paymentIntentId) {
+    const error = new Error("Entitlement does not match refunded payment");
+    error.code = "ENTITLEMENT_CONFLICT";
+    throw error;
+  }
+  if (entitlement.status === "revoked") return;
+  if (entitlement.status !== "active") throw new Error("Entitlement has an invalid state");
+  await writeJsonAtomic(entitlementPath(orderId), {
+    ...entitlement,
+    status: "revoked",
+    revoked_at: revocation.refunded_at,
+    revoked_by_event_id: revocation.refund_event_id,
+  });
+}
+
+async function markOrderRefunded(orderId, paymentIntentId, revocation) {
+  const current = JSON.parse(await fs.readFile(receiptPath(orderId), "utf8"));
+  if (current.order_id !== orderId || current.payment_intent_id !== paymentIntentId) {
+    const error = new Error("Order does not match refunded payment");
+    error.code = "ORDER_CONFLICT";
+    throw error;
+  }
+  if (current.status === "refunded") return;
+  await writeJsonAtomic(receiptPath(orderId), {
+    ...current,
+    status: "refunded",
+    refunded_at: revocation.refunded_at,
+    refund_event_id: revocation.refund_event_id,
+  });
 }
 
 async function serveStatic(req, res) {
@@ -435,7 +600,7 @@ async function handleCheckout(req, res) {
     return sendJson(res, 400, { error: "Invalid order details." });
   }
   if (input.error) return sendJson(res, 400, { error: input.error });
-  if (!STRIPE_SECRET_KEY) return sendJson(res, 503, { error: "Checkout is not ready yet." });
+  if (!stripeIsReady()) return sendJson(res, 503, { error: "Checkout is not ready yet." });
   const baseUrl = configuredPublicBaseUrl();
   if (!baseUrl) return sendJson(res, 503, { error: "Checkout is not ready yet." });
   try {
@@ -462,31 +627,68 @@ async function handleStripeWebhook(req, res) {
   } catch {
     return sendJson(res, 400, { error: "Invalid webhook payload" });
   }
-  if (event.type !== "checkout.session.completed") return sendJson(res, 400, { error: "Unsupported webhook event" });
-  const session = event.data?.object;
-  if (!validEventId(event.id) || !isValidPaidCheckoutSession(session)) {
-    return sendJson(res, 400, { error: "Invalid Checkout session" });
+  if (!validEventId(event.id)) return sendJson(res, 400, { error: "Invalid webhook event" });
+  if (event.type === "charge.refunded") return handleRefundWebhook(res, event);
+  if (event.type !== "checkout.session.completed") {
+    return sendJson(res, 200, { received: true, ignored: true });
   }
+  const session = event.data?.object;
+  if (!isValidPaidCheckoutSession(session)) return sendJson(res, 400, { error: "Invalid Checkout session" });
   const job = jobFromCheckoutSession(session, event);
   try {
     await claimEvent(job.event_id, job.order_id);
     const result = await writeOrderOnce(job);
     sendJson(res, 200, { received: true, created: result.created, order_id: result.job.order_id });
   } catch (error) {
-    if (error?.code === "EVENT_CONFLICT" || error?.code === "ORDER_CONFLICT") {
+    if (["EVENT_CONFLICT", "ORDER_CONFLICT", "PAYMENT_CONFLICT", "ENTITLEMENT_CONFLICT"].includes(error?.code)) {
       return sendJson(res, 409, { error: "Webhook event conflicts with an existing order" });
     }
     sendJson(res, 500, { error: "Could not store order" });
   }
 }
 
+async function handleRefundWebhook(res, event) {
+  const charge = event.data?.object;
+  const isFullRefund = charge?.object === "charge"
+    && charge.refunded === true
+    && Number.isInteger(charge.amount)
+    && charge.amount > 0
+    && charge.amount_refunded === charge.amount
+    && String(charge.currency || "").toLowerCase() === "aed"
+    && charge.livemode === expectedStripeLivemode()
+    && validPaymentIntentId(charge.payment_intent);
+  if (!isFullRefund) return sendJson(res, 200, { received: true, ignored: true });
+  const orderId = await findOrderForPayment(charge.payment_intent);
+  if (!orderId) return sendJson(res, 200, { received: true, ignored: true });
+  const createdSeconds = Number(charge.refunds?.data?.[0]?.created || event.created);
+  const refundedAt = Number.isFinite(createdSeconds)
+    ? new Date(createdSeconds * 1000).toISOString()
+    : new Date().toISOString();
+  try {
+    await claimEvent(event.id, orderId);
+    const result = await claimRevocation(orderId, event, refundedAt);
+    await revokeEntitlement(orderId, charge.payment_intent, result.revocation);
+    await markOrderRefunded(orderId, charge.payment_intent, result.revocation);
+    sendJson(res, 200, { received: true, created: result.created, order_id: orderId, entitlement: "revoked" });
+  } catch (error) {
+    if (["EVENT_CONFLICT", "ORDER_CONFLICT", "ENTITLEMENT_CONFLICT"].includes(error?.code)) {
+      return sendJson(res, 409, { error: "Refund event conflicts with an existing order" });
+    }
+    sendJson(res, 500, { error: "Could not revoke order" });
+  }
+}
+
 function isValidPaidCheckoutSession(session) {
   if (!session || session.object !== "checkout.session" || !validOrderId(session.id)) return false;
   if (session.mode !== "payment" || session.payment_status !== "paid") return false;
+  if (session.livemode !== expectedStripeLivemode()) return false;
   if (String(session.currency || "").toLowerCase() !== "aed") return false;
   if (session.amount_total !== EPISODE_PRICE_AED * 100) return false;
+  if (!validPaymentIntentId(session.payment_intent)) return false;
   if (session.client_reference_id !== ORDER_PRODUCT_MARKER) return false;
   if (session.metadata?.glowhum_product !== ORDER_PRODUCT_MARKER) return false;
+  if (session.metadata?.glowhum_price !== STRIPE_PRICE_ID) return false;
+  if (session.metadata?.is_test !== String(!session.livemode)) return false;
   const order = validateOrderInput({
     email: session.customer_details?.email,
     topic: session.metadata?.topic,
@@ -534,7 +736,9 @@ const server = http.createServer(async (req, res) => {
   try {
     const pathname = new URL(req.url, "http://localhost").pathname;
     if (pathname.startsWith("/api/")) {
-      if (pathname === "/api/order-config" && req.method === "GET") return sendJson(res, 200, { price_aed: EPISODE_PRICE_AED });
+      if (pathname === "/api/order-config" && req.method === "GET") {
+        return sendJson(res, 200, { price_aed: EPISODE_PRICE_AED, checkout_ready: stripeIsReady() });
+      }
       if (pathname === "/api/checkout" && req.method === "POST") return handleCheckout(req, res);
       if (pathname === "/api/stripe/webhook" && req.method === "POST") return handleStripeWebhook(req, res);
       if (pathname === "/api/drop" && req.method === "POST") return handleDrop(req, res, req.socket.remoteAddress || "unknown");

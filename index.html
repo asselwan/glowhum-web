@@ -61,6 +61,7 @@
       var notice=document.getElementById('notice');
       fetch('/api/order-config').then(function(r){return r.ok?r.json():null}).then(function(data){
         if(data&&Number.isInteger(data.price_aed)){document.querySelectorAll('[data-price]').forEach(function(node){node.textContent=data.price_aed});}
+        if(data&&data.checkout_ready===false){button.disabled=true;button.textContent='Payment is not open yet';notice.textContent='We are finishing payment setup.';}
       }).catch(function(){});
       form.addEventListener('submit',function(event){
         event.preventDefault(); notice.textContent='';

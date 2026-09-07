@@ -27,8 +27,8 @@
     (function(){
       var id=new URLSearchParams(window.location.search).get('order_id');
       var state=document.getElementById('state'),message=document.getElementById('message'),details=document.getElementById('details');
-      var titles={paid:'Payment received',rendering:'Your episode is rendering',published:'Your episode is published'};
-      var messages={paid:'Your order is in line. We will begin making the episode soon.',rendering:'Your episode is being made now.',published:'Your finished episode is ready.'};
+      var titles={paid:'Payment received',rendering:'Your episode is rendering',published:'Your episode is published',refunded:'Payment refunded'};
+      var messages={paid:'Your order is in line. We will begin making the episode soon.',rendering:'Your episode is being made now.',published:'Your finished episode is ready.',refunded:'This order was refunded. Access for this order has ended.'};
       function showError(text){state.textContent='We could not find that order';message.textContent=text;message.className='message error';}
       function safeVideoUrl(value){try{var url=new URL(value);return url.protocol==='https:'?url.href:null;}catch(error){return null;}}
       function load(){
@@ -39,7 +39,7 @@
           state.textContent=titles[status];message.textContent=messages[status];details.hidden=false;document.getElementById('orderId').textContent=order.order_id;
           if(order.published_at){var published=document.getElementById('publishedRow');published.hidden=false;document.getElementById('publishedAt').textContent=new Date(order.published_at).toLocaleString();}
           var video=safeVideoUrl(order.video_url);if(video){var link=document.getElementById('videoLink');link.href=video;link.hidden=false;}
-          if(status!=='published')setTimeout(load,8000);
+          if(status!=='published'&&status!=='refunded')setTimeout(load,8000);
         }).catch(function(){showError('We could not check the order right now. This page will try again shortly.');setTimeout(load,4000);});
       }
       load();

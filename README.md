@@ -39,8 +39,8 @@ The server is a small HTTP API.
 - `GET /api/drop/:id` returns the receipt for the stored drop.
 - `GET /api/order-config` returns the published integer AED price.
 - `POST /api/checkout` accepts JSON with `email` and either `topic` or `report_url`. It creates a hosted Stripe Checkout session for one episode and returns its URL.
-- `POST /api/stripe/webhook` accepts only verified, paid `checkout.session.completed` events for the GLOWHUM one episode product.
-- `GET /api/order/:id` returns the public order state: `paid`, `rendering` or `published`, plus `video_url` and `published_at` when available.
+- `POST /api/stripe/webhook` verifies the raw Stripe body. A paid `checkout.session.completed` event grants one entitlement. A full `charge.refunded` event revokes that same entitlement.
+- `GET /api/order/:id` returns the public order state: `paid`, `rendering`, `published` or `refunded`, plus `video_url` and `published_at` when available.
 
 Drops are rate limited to 20 per IP per hour.
 
@@ -65,11 +65,22 @@ Set these server-only values in the deployment environment. Do not place either 
 
 - `STRIPE_SECRET_KEY` is the Stripe secret API key used only by `POST /api/checkout`.
 - `STRIPE_WEBHOOK_SECRET` is the endpoint signing secret used only by `POST /api/stripe/webhook`.
+- `STRIPE_PRICE_ID` is the one time Stripe Price created for the Glowhum one episode offer.
+- `STRIPE_ALLOW_LIVE=true` is required in addition to a live key. Without this separate switch, checkout refuses live keys. Do not set it during test proof.
 - `GLOWHUM_EPISODE_PRICE_AED` is a positive integer price in AED. It defaults to `199`.
 - `GLOWHUM_DROPS_DIR` is the episode job directory. It defaults to `/data/glowhum-drops` when the server runs directly. The container sets it to `/data`.
 - `PUBLIC_BASE_URL` is required for checkout. It must be the deployed HTTPS origin, for example `https://glowhum.com`. The server never derives Stripe return URLs from a request Host header.
 
-Checkout sessions use `client_reference_id=glowhum_one_episode_v1` and the matching `metadata[glowhum_product]` marker. The webhook requires both markers, a paid payment-mode Checkout Session, AED currency, and the exact configured amount before it writes anything.
+Checkout sessions use `client_reference_id=glowhum_one_episode_v1` and matching product, price and test markers. The webhook requires those markers, a paid payment mode Checkout Session, the expected Stripe mode, AED currency, and the exact configured amount before it writes anything.
+
+Create or reuse the test Product and Price with the setup command. It does no network work unless `--apply` and the exact confirmation are both present. It refuses live keys.
+
+```bash
+node scripts/setup-stripe-test.mjs
+STRIPE_SECRET_KEY=... node scripts/setup-stripe-test.mjs --apply --confirm=glowhum_one_episode_v1
+```
+
+Save the returned `STRIPE_PRICE_ID` in the test deployment. Configure the webhook endpoint for `checkout.session.completed` and `charge.refunded`, then save its test signing secret as `STRIPE_WEBHOOK_SECRET`.
 
 The production storage mapping is host `/data/glowhum-drops` to container `/data`. With the container value `GLOWHUM_DROPS_DIR=/data`, the existing `glowhum-drop-sync` watcher reads the host path `/data/glowhum-drops/drops/*/receipt.json`.
 
@@ -83,13 +94,19 @@ GLOWHUM_DROPS_DIR/
       receipt.json
   events/
     <stripe-event-id>.json
+  payments/
+    <stripe-payment-intent-id>.json
+  entitlements/
+    <stripe-checkout-session-id>.json
+  revocations/
+    <stripe-checkout-session-id>.json
 ```
 
-`request.md` contains the submitted topic and report URL. `receipt.json` includes the source compatibility fields `name: "request.md"`, `sha256`, `size`, and `received_at`, as well as `id`, `order_id`, `email`, `topic`, `report_url`, `price_aed`, `created_at`, `status: "paid"`, `event_id`, `video_url: null`, and `published_at: null`.
+`request.md` contains the submitted topic and report URL. `receipt.json` includes the source compatibility fields `name: "request.md"`, `sha256`, `size`, and `received_at`. It also records the order, Product marker, Price, PaymentIntent, Stripe mode, price and state.
 
-Idempotency is keyed by Stripe event ID. The atomic file in `events/` binds each event ID to one Checkout session ID. A repeated event can finish an interrupted write for that same order, while reuse of an event ID for another session is rejected.
+Idempotency is keyed by Stripe event ID. The atomic file in `events/` binds each event ID to one Checkout session ID. A repeated event can finish an interrupted write for that same order, while reuse of an event ID for another session is rejected. The payment index binds one PaymentIntent to one order. The entitlement starts as `active`. One immutable revocation record changes it to `revoked` after a full refund. A paid event replay cannot restore a revoked entitlement.
 
-The episode pipeline owns only these state updates: set `status` to `rendering` when work starts; set `status` to `published`, `video_url` to a valid HTTPS URL, and `published_at` to an ISO 8601 timestamp after publishing. The status page accepts only `paid`, `rendering`, or a fully populated `published` receipt and never exposes the buyer email or report details.
+The episode pipeline owns only these state updates: set `status` to `rendering` when work starts; set `status` to `published`, `video_url` to a valid HTTPS URL, and `published_at` to an ISO 8601 timestamp after publishing. The webhook can set `status` to `refunded`. The status page accepts only `paid`, `rendering`, `refunded`, or a fully populated `published` receipt and never exposes the buyer email or report details.
 
 Report URLs must be public HTTPS URLs. The order server rejects localhost and obvious private literal addresses. Any downstream fetcher must also resolve DNS and enforce SSRF protection before it fetches a report URL.
 
