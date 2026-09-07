@@ -5,6 +5,7 @@ WORKDIR /app
 COPY . .
 
 ENV DROP_ROOT=/data/drops
+ENV GLOWHUM_DROPS_DIR=/data
 ENV PORT=80
 
 EXPOSE 80

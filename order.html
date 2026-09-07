@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1026">
+  <title>Order status | GLOWHUM</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <style>
+    :root{--night:#0b1026;--panel:#121a3d;--line:#2b376b;--ink:#eef0ff;--dim:#adb5d8;--core:#ffb454;--ok:#6ee7b7;--bad:#ff9a9a}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 50% -10%,#2b3d78 0,var(--night) 45rem);color:var(--ink);font:17px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}.card{width:min(100% - 40px,650px);padding:34px;background:var(--panel);border:1px solid var(--line);border-radius:22px;box-shadow:0 20px 70px #02061666}.brand{color:var(--ink);font-weight:900;letter-spacing:.13em;text-decoration:none}.brand b,.eyebrow{color:var(--core)}.eyebrow{font-size:13px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;margin-top:35px}.state{font-size:clamp(30px,7vw,50px);line-height:1.08;letter-spacing:-.04em;margin:8px 0 12px}.message{color:var(--dim);margin:0}.details{border-top:1px solid var(--line);margin-top:25px;padding-top:20px}.details p{margin:8px 0;color:var(--dim)}.details b{color:var(--ink)}.link{display:inline-block;color:var(--core);font-weight:800;margin-top:8px;word-break:break-all}.error{color:var(--bad)}.back{color:var(--dim);display:inline-block;margin-top:28px;font-weight:800;text-decoration:none}.back:hover{color:var(--core)}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <a class="brand" href="/">GLOW<b>HUM</b></a>
+    <div class="eyebrow">Order status</div>
+    <h1 class="state" id="state">Checking your order</h1>
+    <p class="message" id="message">This can take a moment after payment.</p>
+    <div class="details" id="details" hidden>
+      <p><b>Order</b> <span id="orderId"></span></p>
+      <p id="publishedRow" hidden><b>Published</b> <time id="publishedAt"></time></p>
+      <a class="link" id="videoLink" href="#" hidden rel="noopener noreferrer" target="_blank">Watch your episode</a>
+    </div>
+    <a class="back" href="/">Start another order</a>
+  </main>
+  <script>
+    (function(){
+      var id=new URLSearchParams(window.location.search).get('order_id');
+      var state=document.getElementById('state'),message=document.getElementById('message'),details=document.getElementById('details');
+      var titles={paid:'Payment received',rendering:'Your episode is rendering',published:'Your episode is published'};
+      var messages={paid:'Your order is in line. We will begin making the episode soon.',rendering:'Your episode is being made now.',published:'Your finished episode is ready.'};
+      function showError(text){state.textContent='We could not find that order';message.textContent=text;message.className='message error';}
+      function safeVideoUrl(value){try{var url=new URL(value);return url.protocol==='https:'?url.href:null;}catch(error){return null;}}
+      function load(){
+        if(!id||!/^cs_[A-Za-z0-9_]+$/.test(id)){showError('Open this page from your payment confirmation.');return;}
+        fetch('/api/order/'+encodeURIComponent(id)).then(function(response){return response.json().then(function(body){return {ok:response.ok,body:body};});}).then(function(result){
+          if(!result.ok){showError('Payment may still be confirming. This page will check again shortly.');setTimeout(load,4000);return;}
+          var order=result.body,status=titles[order.status]?order.status:'paid';
+          state.textContent=titles[status];message.textContent=messages[status];details.hidden=false;document.getElementById('orderId').textContent=order.order_id;
+          if(order.published_at){var published=document.getElementById('publishedRow');published.hidden=false;document.getElementById('publishedAt').textContent=new Date(order.published_at).toLocaleString();}
+          var video=safeVideoUrl(order.video_url);if(video){var link=document.getElementById('videoLink');link.href=video;link.hidden=false;}
+          if(status!=='published')setTimeout(load,8000);
+        }).catch(function(){showError('We could not check the order right now. This page will try again shortly.');setTimeout(load,4000);});
+      }
+      load();
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+.git
+.aider*
+.env*
+*.key
+*.pem
+*.p12
+*.pfx
+*.secret
+secrets/
+cache/
+.cache/
+tmp/
+node_modules/
+.DS_Store
