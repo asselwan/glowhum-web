@@ -470,11 +470,12 @@ async function markOrderRefunded(orderId, paymentIntentId, revocation) {
   });
 }
 
-async function serveStatic(req, res) {
+export async function serveStatic(req, res) {
   const pathname = new URL(req.url, "http://localhost").pathname;
   let file = null;
   if (pathname === "/") file = "index.html";
   else if (pathname === "/order") file = "order.html";
+  else if (pathname === "/drop") file = "drop.html";
   else if (pathname === "/favicon.svg") file = "favicon.svg";
   else if (pathname === "/favicon.ico") file = "favicon.ico";
   else if (pathname === "/apple-touch-icon.png") file = "apple-touch-icon.png";
@@ -508,7 +509,7 @@ function isRateLimited(ip) {
   return false;
 }
 
-async function handleDrop(req, res, ip) {
+export async function handleDrop(req, res, ip) {
   if (isRateLimited(ip)) return sendJson(res, 429, { error: "Rate limit exceeded" });
   const rawName = req.headers["x-file-name"];
   const declaredSize = Number(req.headers["x-file-size"]);
@@ -521,7 +522,7 @@ async function handleDrop(req, res, ip) {
     return sendJson(res, 413, { error: "File too large" });
   }
 
-  const safeName = sanitizeFilename(rawName);
+  const safeName = sanitizeFilename(rawName) === "receipt.json" ? "report-receipt.json" : sanitizeFilename(rawName);
   const id = newId();
   const targetDir = path.join(DROP_ROOT, id);
   const targetFile = path.join(targetDir, safeName);
@@ -545,6 +546,10 @@ async function handleDrop(req, res, ip) {
     }
     await handle.close();
     handle = null;
+    if (storedSize !== declaredSize) {
+      await fs.rm(targetDir, { recursive: true, force: true });
+      return sendJson(res, 400, { error: "The file arrived incomplete. Choose the file and try again." });
+    }
   } catch {
     if (handle) await handle.close().catch(() => {});
     await fs.rm(targetFile, { force: true }).catch(() => {});
@@ -756,9 +761,11 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, HOST, () => {
-  if (process.env.NODE_ENV !== "test") console.log(`GLOWHUM server listening on ${HOST}:${PORT}`);
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
+  server.listen(PORT, HOST, () => {
+    if (process.env.NODE_ENV !== "test") console.log(`GLOWHUM server listening on ${HOST}:${PORT}`);
+  });
+}
 
 function shutdown() {
   server.close(() => process.exit(0));

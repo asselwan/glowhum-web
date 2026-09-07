@@ -114,3 +114,26 @@ Report URLs must be public HTTPS URLs. The order server rejects localhost and ob
 
 - Deep indigo night `#0b1026`, warm glow core `#ffb454`, aura edge `#ff7a3d`, one electric accent `#41e6ff`.
 - The order form reads the current integer AED price from the server.
+
+## Report drop and current delivery gates
+
+TwoThumbs prompt id: prm_a611c7ea-cec5-4831-970d-248073dff6fc, version 67.
+
+`/drop` accepts a file, shows upload progress, reads its saved status, and downloads a receipt. Its private return link holds the receipt ID in the URL fragment. Preview and publication remain visibly unavailable until the worker has a supported delivery contract. Files named `receipt.json` are stored as `report-receipt.json` so the receipt cannot overwrite the source. A size mismatch fails the upload and removes the incomplete drop.
+
+This local change does not prove a fresh user has completed the live journey. Deploy and run that journey with a registered test identity after the preview and approval paths exist. Do not describe a saved drop as a rendered or published episode.
+
+The four Glowhum asks from `.ainur/ASTRA_HANDOFF_2026_09_07.md` remain partial:
+
+| Ask | Remaining evidence |
+|---|---|
+| automate report to script to shots to voice to episode | One admitted source report, actual script, shots, voice and episode artifacts, their hashes, elapsed time, measured cost, retries, QA results and human touches from the engine. The engine is outside this repository. |
+| render and publish the full Astra episode and three verticals | Founder approval for the bounded render and private upload, followed by the four output artifacts, private video IDs, actual cost and touch count. No approval or video ID was inferred. |
+| make the Glowhum front door useful in plain words | A live fresh user run through drop, status, preview, approval, publication and receipt. This change provides the drop and receipt slice. |
+| challenge Higgsfield with our own engine | An admitted research source, a completed episode costing less than 100 AED, measured latency and touches, and a comparison against the canonical charter. The unsupported price and engine comparison was removed from the page. |
+
+Before the render, bind the approved source and script hashes, full episode plus three verticals, provider, maximum cost, destination account and private visibility to the approval. Stop on a missing approval or source admission. After the render, check every artifact and record real cost, retries, QA and touches before requesting private upload. Check the destination video IDs and visibility after upload. Do not replace these checks with local test results.
+
+Existing evidence pointers are the workspace Astra handoff and DDAY founder and K3 handoffs dated 2026-09-07. The `physai` charter and root founder review paths quoted by those handoffs were absent at those exact paths during this check. Their targets must be resolved before execution.
+
+Validation on 2026-09-07: `node scripts/drop-storage.test.mjs` passed with exit 0. It exercises the actual upload handler and disk writes, verifies source and receipt hashes, checks reserved and path shaped names, rejects incomplete and oversized bodies, and serves the new page. `node --check server.mjs` and `git diff --check` passed. The HTTP suite `node --test scripts/server.test.mjs scripts/stripe-setup.test.mjs` exited 1. Direct execution confirmed that the sandbox refuses socket listeners with `EPERM`; the Stripe setup subprocess also returned an empty body. HTTP, browser and live delivery checks remain open.

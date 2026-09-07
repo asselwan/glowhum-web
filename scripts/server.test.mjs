@@ -80,6 +80,13 @@ test("server API behavior", async () => {
   try {
     await waitForServer(port);
 
+    const dropPage = await fetch(`http://127.0.0.1:${port}/drop`);
+    assert.equal(dropPage.status, 200);
+    const dropHtml = await dropPage.text();
+    assert.match(dropHtml, /No preview is available/);
+    assert.match(dropHtml, /Publishing is not available/);
+    assert.match(dropHtml, /XMLHttpRequest/);
+
     const orderConfig = await fetch(`http://127.0.0.1:${port}/api/order-config`);
     assert.deepEqual(await orderConfig.json(), { price_aed: 199, checkout_ready: false });
 
@@ -102,6 +109,27 @@ test("server API behavior", async () => {
     assert.equal(receipt.size, payload.length);
     assert.equal(receipt.status, "received");
     assert.equal(receipt.email, null);
+
+    const reservedUpload = await fetch(`http://127.0.0.1:${port}/api/drop`, {
+      method: "POST",
+      headers: { "X-File-Name": "receipt.json", "X-File-Size": "4" },
+      body: "test",
+    });
+    assert.equal(reservedUpload.status, 201);
+    const reserved = await reservedUpload.json();
+    assert.equal(reserved.name, "report-receipt.json");
+    assert.equal(await fs.readFile(path.join(dropRoot, reserved.id, reserved.name), "utf8"), "test");
+    assert.equal(JSON.parse(await fs.readFile(path.join(dropRoot, reserved.id, "receipt.json"), "utf8")).sha256,
+      crypto.createHash("sha256").update("test").digest("hex"));
+
+    const beforeMismatch = await fs.readdir(dropRoot);
+    const mismatch = await fetch(`http://127.0.0.1:${port}/api/drop`, {
+      method: "POST",
+      headers: { "X-File-Name": "incomplete.pdf", "X-File-Size": "100" },
+      body: "short",
+    });
+    assert.equal(mismatch.status, 400);
+    assert.deepEqual(await fs.readdir(dropRoot), beforeMismatch);
 
     const tooBig = crypto.randomBytes(3 * 1024 * 1024);
     const bigUpload = await fetch(`http://127.0.0.1:${port}/api/drop`, {
