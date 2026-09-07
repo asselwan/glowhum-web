@@ -7,7 +7,33 @@
   <title>Glowhum | Your report</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <style>
-    *{box-sizing:border-box}body{margin:0;background:#0b1026;color:#eef0ff;font:18px/1.6 system-ui,sans-serif}main{max-width:720px;margin:auto;padding:28px 22px}a{color:#ffb454}h1{font-size:clamp(36px,8vw,58px);line-height:1.1}section,form{border:1px solid #2b376b;background:#121a3d;border-radius:20px;padding:24px;margin:24px 0}button,input{font:inherit;max-width:100%}button{border:0;border-radius:10px;background:#ffb454;color:#1d1003;padding:12px 20px;margin-top:14px;cursor:pointer}button:disabled{opacity:.6;cursor:wait}label{display:block;font-weight:700;margin-bottom:12px}progress{display:block;width:100%;margin-top:20px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}dt{font-weight:700}dd{margin:0 0 14px;overflow-wrap:anywhere}:focus-visible{outline:3px solid #ffb454;outline-offset:4px}[hidden]{display:none}
+    *{box-sizing:border-box}body{margin:0;background:#0b1026;color:#eef0ff;font:18px/1.6 system-ui,sans-serif}main{max-width:720px;margin:auto;padding:28px 22px}a{color:#ffb454}h1{font-size:clamp(36px,8vw,58px);line-height:1.1}section,form{border:1px solid #2b376b;background:#121a3d;border-radius:20px;padding:24px;margin:24px 0}
+    button{font:inherit;max-width:100%;border:0;border-radius:10px;background:#ffb454;color:#1d1003;padding:12px 20px;margin-top:14px;cursor:pointer;font-weight:800}
+    button:disabled{opacity:.6;cursor:wait}
+    .dropzone{position:relative;border:2px dashed #2b376b;border-radius:16px;padding:36px 20px;text-align:center;cursor:pointer;transition:border-color .2s ease,background .2s ease}
+    .dropzone:hover,.dropzone:focus-visible{border-color:#ffb454}
+    .dropzone.over{border-color:#ffb454;background:#1a2350}
+    .dropzone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+    .dropzone .icon{width:44px;height:44px;margin:0 auto 14px;color:#adb5d8}
+    .dropzone .prompt{font-weight:800;font-size:19px}
+    .dropzone .hint{color:#adb5d8;font-size:14px;margin-top:6px}
+    .filecard{display:none;align-items:center;gap:14px;border:1px solid #2b376b;background:#0e1533;border-radius:14px;padding:14px 16px;margin-top:16px}
+    .filecard.show{display:flex}
+    .filecard .glyph{flex:0 0 auto;width:34px;height:34px;border-radius:9px;background:#1a2350;display:grid;place-items:center;font-size:14px;font-weight:900;color:#ffb454}
+    .filecard .meta{flex:1;min-width:0}
+    .filecard .name{font-weight:700;overflow-wrap:anywhere}
+    .filecard .size{color:#adb5d8;font-size:14px}
+    .filecard .check{flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:#2b376b;display:grid;place-items:center;color:transparent;font-size:13px;transition:background .3s ease,color .3s ease}
+    .filecard.saved .check{background:#6ee7b7;color:#0b1026}
+    progress{display:block;width:100%;margin-top:14px;height:8px;border-radius:99px;overflow:hidden}
+    progress::-webkit-progress-bar{background:#0e1533;border-radius:99px}
+    progress::-webkit-progress-value{background:#ffb454;border-radius:99px;transition:width .15s ease}
+    label{display:block;font-weight:700;margin-bottom:12px}
+    pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}
+    dt{font-weight:700}dd{margin:0 0 14px;overflow-wrap:anywhere}
+    .error{color:#ff9a9a}
+    :focus-visible{outline:3px solid #ffb454;outline-offset:4px}
+    [hidden]{display:none}
   </style>
 </head>
 <body><main>
@@ -15,8 +41,18 @@
   <h1>Drop a report.</h1>
   <p>Save your report and keep its receipt. A drop does not start a paid render or publish anything.</p>
   <form id="dropForm">
-    <label for="report">Choose your report</label>
-    <input id="report" type="file" required>
+    <label for="report">Report</label>
+    <div class="dropzone" id="dropzone">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v12m0-12 5 5m-5-5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16v2a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="prompt" id="dropPrompt">Drag your report here, or choose a file</div>
+      <div class="hint">Any file type. Your receipt appears below once it is saved.</div>
+      <input id="report" type="file" required aria-describedby="dropPrompt">
+    </div>
+    <div class="filecard" id="filecard">
+      <div class="glyph" aria-hidden="true">F</div>
+      <div class="meta"><div class="name" id="fileName"></div><div class="size" id="fileSize"></div></div>
+      <div class="check" id="fileCheck" aria-hidden="true">&#10003;</div>
+    </div>
     <button id="upload" type="submit">Save report</button>
     <progress id="progress" max="100" value="0" aria-label="Upload progress" hidden></progress>
   </form>
@@ -34,6 +70,18 @@
     const el = id => document.getElementById(id);
     let receiptUrl;
     let currentId = new URLSearchParams(location.hash.slice(1)).get('id');
+    function humanSize(bytes) {
+      if (!Number.isFinite(bytes)) return '';
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+    function showFileCard(file) {
+      el('fileName').textContent = file.name;
+      el('fileSize').textContent = humanSize(file.size);
+      el('filecard').classList.add('show');
+      el('filecard').classList.remove('saved');
+    }
     function show(receipt) {
       currentId = receipt.id;
       el('name').textContent = receipt.name;
@@ -47,6 +95,7 @@
       history.replaceState(null, '', returnPath);
       el('returnLink').href = returnPath;
       el('saved').hidden = false;
+      el('filecard').classList.add('saved');
     }
     async function refresh() {
       el('refresh').disabled = true;
@@ -59,14 +108,14 @@
       finally { el('refresh').disabled = false; }
     }
     el('refresh').addEventListener('click', refresh);
-    el('dropForm').addEventListener('submit', event => {
-      event.preventDefault();
-      const file = el('report').files[0];
+    function uploadFile(file) {
       if (!file) return;
       el('upload').disabled = true;
       el('progress').hidden = false;
       el('progress').value = 0;
       el('notice').textContent = 'Saving your report…';
+      el('notice').className = '';
+      showFileCard(file);
       const request = new XMLHttpRequest();
       request.open('POST', '/api/drop');
       request.timeout = 300000;
@@ -81,14 +130,37 @@
           if (request.status !== 201) throw new Error(receipt.error || 'Could not save your report. Try again.');
           show(receipt);
           el('notice').textContent = 'Your report is saved. Keep your receipt.';
-        } catch (error) { el('notice').textContent = error.message || 'Could not read the receipt. Try again.'; }
+        } catch (error) { el('notice').textContent = error.message || 'Could not read the receipt. Try again.'; el('notice').className = 'error'; }
       };
-      request.onerror = () => { el('notice').textContent = 'Connection lost. Your report may have arrived. Try again if you have no receipt.'; };
-      request.ontimeout = () => { el('notice').textContent = 'The upload took too long. Try again when your connection is ready.'; };
+      request.onerror = () => { el('notice').textContent = 'Connection lost. Your report may have arrived. Try again if you have no receipt.'; el('notice').className = 'error'; };
+      request.ontimeout = () => { el('notice').textContent = 'The upload took too long. Try again when your connection is ready.'; el('notice').className = 'error'; };
       request.onloadend = () => { el('upload').disabled = false; el('progress').hidden = true; };
       request.send(file);
+    }
+    const dropzone = el('dropzone');
+    const input = el('report');
+    input.addEventListener('change', () => { if (input.files[0]) showFileCard(input.files[0]); });
+    ['dragenter', 'dragover'].forEach(name => dropzone.addEventListener(name, event => {
+      event.preventDefault();
+      dropzone.classList.add('over');
+    }));
+    ['dragleave', 'dragend'].forEach(name => dropzone.addEventListener(name, event => {
+      if (event.target === dropzone || name === 'dragend') dropzone.classList.remove('over');
+    }));
+    dropzone.addEventListener('drop', event => {
+      event.preventDefault();
+      dropzone.classList.remove('over');
+      const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+      if (!file) return;
+      try { const transfer = new DataTransfer(); transfer.items.add(file); input.files = transfer.files; } catch (error) {}
+      showFileCard(file);
+    });
+    el('dropForm').addEventListener('submit', event => {
+      event.preventDefault();
+      uploadFile(el('report').files[0]);
     });
     if (currentId) refresh();
   </script>
 </main></body>
 </html>
+</content>
