@@ -1,0 +1,80 @@
+{
+  "record_version": 1,
+  "brand": {
+    "name": "Glowhum",
+    "display_name": "GLOWHUM",
+    "domain": "glowhum.com",
+    "name_approval": {
+      "status": "approved",
+      "source": "/home/ainur/Apps/.ainur/FOUNDER_REVIEW_2026_10.md#B2"
+    },
+    "logo": {
+      "canonical_path": "favicon.svg",
+      "approval": {
+        "status": "unproven",
+        "source": null
+      }
+    },
+    "favicon": {
+      "canonical_path": "favicon.svg",
+      "variants": [
+        { "path": "favicon.svg", "type": "image/svg+xml", "sha256": "239db4e65ff2d57e59bc43d6d4b85d47c0d35c619bb807fc64def9786a892a0b" },
+        { "path": "favicon.ico", "type": "image/x-icon", "sha256": "5aa8657611de25eef2e6566bd08a3301c34f63332c7294b830b467060972f211" },
+        { "path": "apple-touch-icon.png", "type": "image/png", "sha256": "42a4aa8f0487a846e0cb5db992a4bdcf3c6c5d14c82f9dbfa9d74680264f8f54" },
+        { "path": "site.webmanifest", "type": "application/manifest+json", "sha256": "eb06f851fbdfee7a0b8ede05545cd2b23b7d456a0e90d39a8dab5f5cf07d5e43" }
+      ]
+    }
+  },
+  "pages": [
+    {
+      "route": "/",
+      "file": "index.html",
+      "brand_text": "GLOWHUM",
+      "icon_refs": ["favicon.svg", "apple-touch-icon.png", "site.webmanifest"]
+    },
+    {
+      "route": "/drop",
+      "file": "drop.html",
+      "brand_text": "Glowhum",
+      "icon_refs": ["favicon.svg"]
+    },
+    {
+      "route": "/preview",
+      "file": "preview.html",
+      "brand_text": "GLOWHUM",
+      "icon_refs": ["favicon.svg"]
+    },
+    {
+      "route": "/order",
+      "file": "order.html",
+      "brand_text": "GLOWHUM",
+      "icon_refs": ["favicon.svg"]
+    },
+    {
+      "route": "/job",
+      "file": "job.html",
+      "brand_text": "GLOWHUM",
+      "icon_refs": ["favicon.svg"]
+    }
+  ],
+  "redirects": [
+    {
+      "id": "report_drop",
+      "source_file": "index.html",
+      "source_marker": "href=\"/drop\"",
+      "target_route": "/drop"
+    },
+    {
+      "id": "checkout_success",
+      "source_file": "server.mjs",
+      "source_marker": "success_url",
+      "target_route": "/order"
+    },
+    {
+      "id": "checkout_cancel",
+      "source_file": "server.mjs",
+      "source_marker": "cancel_url",
+      "target_route": "/"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "glowhum-clinic-offer-v1",
+  "name": "Clinic offer",
+  "brand": "Glowhum",
+  "vertical": "clinic",
+  "provider": "fal",
+  "model": "fal-ai/bytedance/seedance/v1.5/pro/text-to-video",
+  "prompt": "A polished vertical offer film for a UAE wellness studio. Warm amber light moves across a clean deep indigo reception space, a welcoming team prepares a consultation area, a small product tray catches the light, smooth forward camera motion, refined editorial commercial look, no readable on screen text, no logos, no claims, no treatment, no patient, no watermark.",
+  "input": {
+    "aspect_ratio": "9:16",
+    "resolution": "720p",
+    "duration": "5",
+    "generate_audio": true,
+    "enable_safety_checker": true,
+    "seed": 2601
+  },
+  "budget": {
+    "max_usd": 1.2,
+    "recorded_basis": "KADR_BEATS_HIGGSFIELD_K3_2026_09_03.md: all in cost at or below $1.20 for an eight second 1.5 Pro clip"
+  },
+  "brand_basis": "FOUNDER_REVIEW_2026_10.md: Glowhum is the decided video studio product brand"
+}

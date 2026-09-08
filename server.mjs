@@ -4,6 +4,10 @@ import fs from "node:fs/promises";
 import crypto from "node:crypto";
 import { isIP } from "node:net";
 import { fileURLToPath } from "node:url";
+import { deliveryRoutes, publicDrop } from "./delivery.mjs";
+import { topicPreviewRoutes } from "./topic-preview.mjs";
+import { founderSummaryRoutes } from "./founder-summary.mjs";
+import { creativeJobRoutes } from "./creative-jobs.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -12,6 +16,7 @@ const HOST = "0.0.0.0";
 const PORT = Number(process.env.PORT) || 80;
 const DROP_ROOT = process.env.DROP_ROOT || "/data/drops";
 const GLOWHUM_DROPS_DIR = process.env.GLOWHUM_DROPS_DIR || "/data/glowhum-drops";
+const FOUNDER_SUMMARY_ROOT = process.env.GLOWHUM_FOUNDER_SUMMARY_ROOT || path.join(GLOWHUM_DROPS_DIR, "founder-summary");
 const DROP_MAX_BYTES = Number(process.env.DROP_MAX_BYTES) || 200 * 1024 * 1024;
 const EPISODE_PRICE_AED = positiveInteger(process.env.GLOWHUM_EPISODE_PRICE_AED, 199);
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
@@ -53,9 +58,9 @@ function sendJson(res, status, object) {
 }
 
 function newId() {
-  const bytes = crypto.randomBytes(12);
+  const bytes = crypto.randomBytes(32);
   let id = "";
-  for (let i = 0; i < 12; i++) id += ID_ALPHABET[bytes[i] & 31];
+  for (let i = 0; i < 32; i++) id += ID_ALPHABET[bytes[i] & 31];
   return id;
 }
 
@@ -476,6 +481,8 @@ export async function serveStatic(req, res) {
   if (pathname === "/") file = "index.html";
   else if (pathname === "/order") file = "order.html";
   else if (pathname === "/drop") file = "drop.html";
+  else if (pathname === "/preview") file = "preview.html";
+  else if (pathname === "/job") file = "job.html";
   else if (pathname === "/favicon.svg") file = "favicon.svg";
   else if (pathname === "/favicon.ico") file = "favicon.ico";
   else if (pathname === "/apple-touch-icon.png") file = "apple-touch-icon.png";
@@ -522,7 +529,8 @@ export async function handleDrop(req, res, ip) {
     return sendJson(res, 413, { error: "File too large" });
   }
 
-  const safeName = sanitizeFilename(rawName) === "receipt.json" ? "report-receipt.json" : sanitizeFilename(rawName);
+  const cleanedName = sanitizeFilename(rawName);
+  const safeName = ["receipt.json", "delivery.json", "preview.mp4", ".delivery-lock"].includes(cleanedName) || cleanedName.startsWith(".") ? "report-" + cleanedName : cleanedName;
   const id = newId();
   const targetDir = path.join(DROP_ROOT, id);
   const targetFile = path.join(targetDir, safeName);
@@ -570,6 +578,7 @@ export async function handleDrop(req, res, ip) {
 }
 
 async function handleEmailSet(req, res, id) {
+  if (!/^[a-z0-9]{12,64}$/.test(id)) return sendJson(res, 404, { error: "Not found" });
   let parsed;
   try {
     parsed = await readJsonBody(req);
@@ -591,7 +600,7 @@ async function handleEmailSet(req, res, id) {
 
 async function handleReceiptGet(res, id) {
   try {
-    sendJson(res, 200, JSON.parse(await fs.readFile(path.join(DROP_ROOT, id, "receipt.json"), "utf8")));
+    sendJson(res, 200, await publicDrop(DROP_ROOT, id));
   } catch {
     sendJson(res, 404, { error: "Not found" });
   }
@@ -740,6 +749,10 @@ async function handleOrderStatus(res, id) {
 const server = http.createServer(async (req, res) => {
   try {
     const pathname = new URL(req.url, "http://localhost").pathname;
+    if (await creativeJobRoutes(req, res, pathname, GLOWHUM_DROPS_DIR)) return;
+    if (await topicPreviewRoutes(req, res, pathname, GLOWHUM_DROPS_DIR)) return;
+    if (await deliveryRoutes(req, res, pathname, DROP_ROOT)) return;
+    if (await founderSummaryRoutes(req, res, pathname, { storageRoot: FOUNDER_SUMMARY_ROOT })) return;
     if (pathname.startsWith("/api/")) {
       if (pathname === "/api/order-config" && req.method === "GET") {
         return sendJson(res, 200, { price_aed: EPISODE_PRICE_AED, checkout_ready: stripeIsReady() });

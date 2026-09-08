@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Glowhum | Your preview</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    :root{--night:#0b1026;--panel:#121a3d;--line:#2b376b;--ink:#eef0ff;--dim:#adb5d8;--core:#ffb454;--aura:#ff7a3d;--bad:#ff9a9a;--ok:#6ee7b7}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 50% -8%,#28386e 0,var(--night) 42rem);color:var(--ink);font:17px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}.wrap{width:min(100% - 40px,820px);margin:auto}header{padding:25px 0}.brand{color:var(--ink);font-weight:900;letter-spacing:.13em;text-decoration:none}.brand b,.eyebrow{color:var(--core)}main{padding:5vh 0 70px}.eyebrow{font-size:13px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}.hero{margin-bottom:24px}.hero h1{font-size:clamp(38px,7vw,66px);line-height:1.04;letter-spacing:-.045em;margin:10px 0}.hero p,.muted{color:var(--dim)}.card{background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:28px;box-shadow:0 18px 60px #02061666;margin:20px 0}.video-shell{background:#080d24;border:1px solid var(--line);border-radius:16px;overflow:hidden;margin:20px 0}.video-shell video{display:block;width:100%;aspect-ratio:16/9;background:#080d24}.field{display:block;font-weight:800;margin:17px 0}.field span{display:block;margin-bottom:7px}.field input{width:100%;border:1px solid var(--line);border-radius:12px;background:#080d24;color:var(--ink);font:inherit;padding:13px}.field input:focus{outline:2px solid var(--core);outline-offset:2px}.button{border:0;border-radius:13px;background:linear-gradient(100deg,var(--core),var(--aura));color:#1d1003;cursor:pointer;font:900 17px/1.2 inherit;padding:14px 18px}.button:disabled{cursor:wait;opacity:.65}.notice{min-height:26px;font-weight:700}.error{color:var(--bad)}.success{color:var(--ok)}.small{color:var(--dim);font-size:14px}.back{color:var(--dim);font-weight:800;text-decoration:none}.back:hover{color:var(--core)}[hidden]{display:none}
+  </style>
+</head>
+<body>
+  <header class="wrap"><a class="brand" href="/">GLOW<b>HUM</b></a></header>
+  <main class="wrap">
+    <section class="hero">
+      <div class="eyebrow">Your complete preview</div>
+      <h1 id="title">Making your video.</h1>
+      <p id="status">Your idea stays in this private preview link.</p>
+    </section>
+    <section class="card" id="previewCard" hidden>
+      <div class="video-shell"><video id="video" controls playsinline></video></div>
+      <p class="small" id="videoStatus">Making the complete preview now.</p>
+    </section>
+    <section class="card" id="downloadCard" hidden>
+      <h2>Download your video</h2>
+      <p class="muted">Downloads need an active order. Enter the order ID from your order status link.</p>
+      <form id="downloadForm">
+        <label class="field" for="orderId"><span>Active order ID</span><input id="orderId" name="order_id" required placeholder="cs_..."></label>
+        <button class="button" id="downloadButton" type="submit">Download video</button>
+      </form>
+      <p class="notice" id="downloadNotice" role="alert"></p>
+    </section>
+    <a class="back" href="/">Make another preview</a>
+  </main>
+  <script>
+    (function(){
+      var id=new URLSearchParams(location.search).get('id');
+      var title=document.getElementById('title'),status=document.getElementById('status'),previewCard=document.getElementById('previewCard'),video=document.getElementById('video'),videoStatus=document.getElementById('videoStatus'),downloadCard=document.getElementById('downloadCard');
+      var localUrl;
+      function showError(message){title.textContent='We could not make that preview';status.textContent=message;status.className='error';}
+      function supportedMime(){var options=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];for(var i=0;i<options.length;i++){if(window.MediaRecorder&&MediaRecorder.isTypeSupported(options[i]))return options[i];}return '';}
+      function drawFrame(context,canvas,topic,progress){
+        var gradient=context.createLinearGradient(0,0,canvas.width,canvas.height);gradient.addColorStop(0,'#1d2c5b');gradient.addColorStop(1,'#080d24');context.fillStyle=gradient;context.fillRect(0,0,canvas.width,canvas.height);
+        context.fillStyle='#ffb454';context.font='700 28px system-ui';context.fillText('GLOWHUM',78,82);
+        context.fillStyle='#adb5d8';context.font='600 24px system-ui';context.fillText('A short idea preview',78,138);
+        context.fillStyle='#eef0ff';context.font='900 58px system-ui';var words=topic.split(/\s+/),line='',lines=[];for(var i=0;i<words.length;i++){var next=line?line+' '+words[i]:words[i];if(context.measureText(next).width>1050&&line){lines.push(line);line=words[i];}else line=next;}if(line)lines.push(line);var top=300;lines.slice(0,4).forEach(function(item,index){context.fillText(item,78,top+index*72);});
+        context.fillStyle='#2b376b';context.fillRect(78,630,1124,8);context.fillStyle='#41e6ff';context.fillRect(78,630,1124*progress,8);
+      }
+      async function makeVideo(topic){
+        if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream)throw new Error('Video preview is not supported in this browser.');
+        var mime=supportedMime();if(!mime)throw new Error('Video preview is not supported in this browser.');
+        var canvas=document.createElement('canvas');canvas.width=1280;canvas.height=720;var context=canvas.getContext('2d');var stream=canvas.captureStream(30);var recorder=new MediaRecorder(stream,{mimeType:mime});var chunks=[];var started=performance.now();var duration=8000;var timer;
+        try{drawFrame(context,canvas,topic,0);recorder.ondataavailable=function(event){if(event.data.size)chunks.push(event.data);};
+          var stopped=new Promise(function(resolve,reject){recorder.onerror=function(){reject(new Error('The video preview could not be made.'));};recorder.onstop=function(){resolve(new Blob(chunks,{type:mime.split(';')[0]}));};});
+          recorder.start(250);timer=setInterval(function(){var progress=Math.min(1,(performance.now()-started)/duration);drawFrame(context,canvas,topic,progress);if(progress>=1){clearInterval(timer);recorder.stop();}},33);return await stopped;
+        }finally{if(timer)clearInterval(timer);stream.getTracks().forEach(function(track){track.stop();});}
+      }
+      async function load(){
+        if(!id||!/^[a-f0-9]{36}$/.test(id)){showError('Open this page from the preview form.');return;}
+        try{
+          var response=await fetch('/api/topic-preview/'+encodeURIComponent(id),{cache:'no-store'});var data=await response.json();if(!response.ok)throw new Error(data.error||'Preview not found.');
+          title.textContent='Your idea, in motion.';status.textContent=data.topic;previewCard.hidden=false;
+          if(data.preview_url){video.src=data.preview_url;videoStatus.textContent='Your complete preview is ready.';downloadCard.hidden=false;return;}
+          videoStatus.textContent='Making the complete preview now.';var blob=await makeVideo(data.topic);localUrl=URL.createObjectURL(blob);video.src=localUrl;var saved=await fetch('/api/topic-preview/'+encodeURIComponent(id)+'/video',{method:'POST',headers:{'Content-Type':'video/webm','X-Video-Size':String(blob.size)},body:blob});var savedBody=await saved.json();if(!saved.ok)throw new Error(savedBody.error||'Could not save the preview.');videoStatus.textContent='Your complete preview is ready.';downloadCard.hidden=false;
+        }catch(error){showError(error.message||'Could not make your preview.');}
+      }
+      document.getElementById('downloadForm').addEventListener('submit',async function(event){
+        event.preventDefault();var button=document.getElementById('downloadButton'),notice=document.getElementById('downloadNotice');var orderId=document.getElementById('orderId').value.trim();button.disabled=true;notice.className='notice';notice.textContent='Checking your order.';
+        try{var response=await fetch('/api/topic-preview/'+encodeURIComponent(id)+'/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entitlement_id:orderId})});if(!response.ok){var body=await response.json();throw new Error(body.error||'This order does not unlock downloads.');}var blob=await response.blob();var url=URL.createObjectURL(blob);var link=document.createElement('a');link.href=url;link.download='glowhum-topic-preview.webm';link.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);notice.className='notice success';notice.textContent='Your download is ready.';}catch(error){notice.className='notice error';notice.textContent=error.message||'Could not download this video.';}finally{button.disabled=false;}
+      });
+      load();
+    })();
+  </script>
+</body>
+</html>

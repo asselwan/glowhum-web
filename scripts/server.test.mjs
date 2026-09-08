@@ -83,8 +83,9 @@ test("server API behavior", async () => {
     const dropPage = await fetch(`http://127.0.0.1:${port}/drop`);
     assert.equal(dropPage.status, 200);
     const dropHtml = await dropPage.text();
-    assert.match(dropHtml, /No preview is available/);
-    assert.match(dropHtml, /Publishing is not available/);
+    assert.match(dropHtml, /Make a private video/);
+    assert.match(dropHtml, /Publish privately/);
+    assert.match(dropHtml, /Save receipt/);
     assert.match(dropHtml, /XMLHttpRequest/);
 
     const orderConfig = await fetch(`http://127.0.0.1:${port}/api/order-config`);
