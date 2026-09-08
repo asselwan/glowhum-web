@@ -16,13 +16,13 @@
   <style>
     :root{--night:#0f0b08;--panel:#1c150f;--line:#3a2c1f;--ink:#f6efe4;--dim:#bba692;--core:#c4976b;--aura:#e0955c;--bad:#e2897d;--ok:#8fd9a8;--rad:16px}
     *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at 50% -8%,#2c2015 0,var(--night) 42rem);color:var(--ink);font:17px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
-    .wrap{width:min(100% - 40px,960px);margin:auto}
-    .top{display:flex;justify-content:space-between;align-items:center;padding:25px 0;position:relative}
+    .wrap{width:100%;max-width:1000px;margin-inline:auto;padding-inline:20px}
+    .top{display:flex;justify-content:space-between;align-items:center;padding-block:25px;position:relative}
     .top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:linear-gradient(90deg,transparent,var(--line) 20%,var(--line) 80%,transparent)}
     .brand{color:var(--ink);font-weight:900;letter-spacing:.13em;text-decoration:none}.brand b{color:var(--core)}
     .status-link{color:var(--dim);font-weight:700;text-decoration:none;transition:color .18s cubic-bezier(.16,1,.3,1)}
     @media(hover:hover) and (pointer:fine){.status-link:hover{color:var(--core)}}
-    main{padding:5vh 0 76px}
+    main{padding-block:5vh 76px}
     .hero{text-align:center;margin:0 auto 30px;max-width:730px;opacity:0;animation:rise .7s cubic-bezier(.16,1,.3,1) .05s forwards}
     .eyebrow{color:var(--core);font-size:14px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
     .hero h1{font-size:clamp(44px,8vw,82px);letter-spacing:-.045em;line-height:1;margin:12px 0 20px}
@@ -62,6 +62,8 @@
     @media(prefers-reduced-motion: reduce){.checkout .spinner{animation:none;border-top-color:rgba(36,18,6,.3)}.checkout{transition:none}}
     @keyframes spin{to{transform:rotate(360deg)}}
     .notice{min-height:24px;color:var(--bad);font-weight:700;margin:13px 0 0}
+    .guarantee{margin:14px 0 0;padding:13px 15px;border-radius:var(--rad);background:color-mix(in srgb,var(--core) 9%,transparent);border:1px solid color-mix(in srgb,var(--core) 28%,transparent);color:var(--dim);font-size:14px;line-height:1.5}
+    .guarantee b{color:var(--core);font-weight:900}
     .price{font-size:clamp(38px,6vw,58px);font-weight:900;letter-spacing:-.05em;color:var(--core);margin:16px 0 2px}
     .unit{color:var(--dim);font-weight:800;margin:0}
     .side-list{list-style:none;padding:0;margin:25px 0 0}
@@ -101,6 +103,7 @@
         <label class="field" for="reportUrl"><span>Report URL <em class="hint">or add a topic above</em></span><input id="reportUrl" name="report_url" type="url" inputmode="url" maxlength="500" placeholder="https://example.com/report"></label>
         <button class="checkout" id="checkoutButton" type="submit"><span class="btn-label">Continue to payment</span><span class="spinner" aria-hidden="true"></span></button>
         <p class="notice" id="notice" role="alert"></p>
+        <p class="guarantee"><b>Founding order.</b> We produce your episode and three cuts and send them to your email. If we cannot deliver, you get a full refund.</p>
       </form>
       <aside class="card">
         <div class="eyebrow">Clear price</div>
@@ -109,7 +112,7 @@
         <ul class="side-list">
           <li><b>One long form episode</b>Script, voice, visuals and captions.</li>
           <li><b>Three vertical cuts</b>Ready for Shorts and TikTok.</li>
-          <li><b>Order status</b>See paid, rendering and published updates in one place.</li>
+          <li><b>Delivered or refunded</b>Track your order from paid to delivered, backed by a full refund.</li>
         </ul>
         <p class="fact">One episode is <span data-price>199</span> AED. Have a file to share? <a href="/drop">Save your report and get a receipt.</a></p>
       </aside>
