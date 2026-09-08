@@ -3,14 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#0b1026">
+  <meta name="theme-color" content="#0f0b08">
   <title>Order status | GLOWHUM</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <!-- Design read: same reel-advance identity as index.html; the tracker below already IS
+       the path-integration expression here (paid / rendering / published = the user's own
+       trajectory), so this page keeps it front and center rather than adding a second motif. -->
   <style>
-    :root{--night:#0b1026;--panel:#121a3d;--line:#2b376b;--ink:#eef0ff;--dim:#adb5d8;--core:#ffb454;--aura:#ff7a3d;--ok:#6ee7b7;--bad:#ff9a9a}
+    :root{--night:#0f0b08;--panel:#1c150f;--line:#3a2c1f;--ink:#f6efe4;--dim:#bba692;--core:#c4976b;--aura:#e0955c;--ok:#8fd9a8;--bad:#e2897d;--rad:16px}
     *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;display:grid;place-items:start center;background:radial-gradient(circle at 50% -10%,#2b3d78 0,var(--night) 45rem);color:var(--ink);font:17px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;padding:6vh 20px 60px}
-    .card{width:min(100%,650px);padding:34px;background:var(--panel);border:1px solid var(--line);border-radius:22px;box-shadow:0 20px 70px #02061666}
+    body{margin:0;min-height:100vh;display:grid;place-items:start center;background:radial-gradient(circle at 50% -10%,#2c2015 0,var(--night) 45rem);color:var(--ink);font:17px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;padding:6vh 20px 60px}
+    .card{width:min(100%,650px);padding:34px;background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:0 20px 70px #05030066;opacity:0;transform:translateY(14px);animation:rise .6s cubic-bezier(.16,1,.3,1) forwards}
+    @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+    @media(prefers-reduced-motion: reduce){.card{animation:none;opacity:1;transform:none}}
     .brand{color:var(--ink);font-weight:900;letter-spacing:.13em;text-decoration:none}
     .brand b,.eyebrow{color:var(--core)}
     .eyebrow{font-size:13px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;margin-top:35px}
@@ -21,8 +26,8 @@
     .tracker{list-style:none;display:flex;gap:8px;padding:0;margin:26px 0 4px}
     .tracker li{flex:1;min-width:0}
     .tracker .dot-row{display:flex;align-items:center;gap:0}
-    .tracker .dot{width:14px;height:14px;border-radius:50%;background:var(--line);border:2px solid var(--panel);box-shadow:0 0 0 2px var(--line);flex:0 0 auto;transition:background .4s ease,box-shadow .4s ease}
-    .tracker .bar{flex:1;height:2px;background:var(--line);transition:background .4s ease}
+    .tracker .dot{width:14px;height:14px;border-radius:50%;background:var(--line);border:2px solid var(--panel);box-shadow:0 0 0 2px var(--line);flex:0 0 auto;transition:background .4s cubic-bezier(.16,1,.3,1),box-shadow .4s cubic-bezier(.16,1,.3,1)}
+    .tracker .bar{flex:1;height:2px;background:var(--line);transition:background .4s cubic-bezier(.16,1,.3,1)}
     .tracker li:first-child .dot-row .bar:first-child{display:none}
     .tracker li .label{margin-top:10px;font-size:13px;font-weight:800;color:var(--dim);letter-spacing:.02em}
     .tracker li.done .dot{background:var(--ok);box-shadow:0 0 0 2px var(--ok)}
@@ -40,8 +45,8 @@
     .details b{color:var(--ink)}
     .idrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
     .idrow span{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink);word-break:break-all}
-    .copy{border:1px solid var(--line);background:transparent;color:var(--dim);font:inherit;font-size:13px;font-weight:800;border-radius:8px;padding:5px 10px;cursor:pointer}
-    .copy:hover{color:var(--core);border-color:var(--core)}
+    .copy{border:1px solid var(--line);background:transparent;color:var(--dim);font:inherit;font-size:13px;font-weight:800;border-radius:8px;padding:5px 10px;cursor:pointer;transition:color .18s cubic-bezier(.16,1,.3,1),border-color .18s cubic-bezier(.16,1,.3,1)}
+    @media(hover:hover) and (pointer:fine){.copy:hover{color:var(--core);border-color:var(--core)}}
     .copy[data-copied="true"]{color:var(--ok);border-color:var(--ok)}
     .link{display:inline-block;color:var(--core);font-weight:800;margin-top:8px;word-break:break-all}
     .back{color:var(--dim);display:inline-block;margin-top:28px;font-weight:800;text-decoration:none}
