@@ -1,0 +1,1 @@
+deploy-probe 2026-09-24T18:07:03Z prm_fc58c776: proves a plain push to main reaches glowhum.com through the after-push hook without a manual trigger
