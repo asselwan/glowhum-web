@@ -8,6 +8,7 @@ import { deliveryRoutes, publicDrop } from "./delivery.mjs";
 import { topicPreviewRoutes } from "./topic-preview.mjs";
 import { founderSummaryRoutes } from "./founder-summary.mjs";
 import { creativeJobRoutes } from "./creative-jobs.mjs";
+import { sendMail, orderPaidEmail } from "./mail.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -653,6 +654,17 @@ async function handleStripeWebhook(req, res) {
     await claimEvent(job.event_id, job.order_id);
     const result = await writeOrderOnce(job);
     sendJson(res, 200, { received: true, created: result.created, order_id: result.job.order_id });
+    // Fire-and-forget: never let a slow/failed email turn a successful order write into a
+    // webhook error (Stripe would retry an already-stored order). Only on first write, not
+    // on Stripe's automatic retry of the same event.
+    if (result.created && result.job.email) {
+      const { subject, text, html } = orderPaidEmail({ orderId: result.job.order_id, topic: result.job.topic });
+      sendMail({ to: result.job.email, subject, text, html }).then((outcome) => {
+        if (!outcome.sent) {
+          console.error(JSON.stringify({ component: "mail", event: "order_paid_email_failed", order_id: result.job.order_id, outcome }));
+        }
+      });
+    }
   } catch (error) {
     if (["EVENT_CONFLICT", "ORDER_CONFLICT", "PAYMENT_CONFLICT", "ENTITLEMENT_CONFLICT"].includes(error?.code)) {
       return sendJson(res, 409, { error: "Webhook event conflicts with an existing order" });

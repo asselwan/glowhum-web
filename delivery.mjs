@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { sendMail, orderReadyEmail } from './mail.mjs';
 
 const idPattern = /^[a-z0-9]{12,64}$/;
 const shaPattern = /^[a-f0-9]{64}$/;
@@ -283,7 +284,19 @@ export async function deliveryRoutes(req, res, pathname, root) {
         if (!/^[\w-]{11}$/.test(input.video_id || '') || input.channel_id !== state.destination.channel_id || input.visibility !== 'private' || !shaPattern.test(input.preview_sha256 || '') || input.preview_sha256 !== state.approved_sha256 || input.verified !== true) fail(400,'A confirmed publication matching the approved video and destination is required.');
         const publishedAt = now();
         const publication = {service:'YouTube',video_id:input.video_id,url:`https://www.youtube.com/watch?v=${input.video_id}`,channel_id:input.channel_id,visibility:'private',preview_sha256:input.preview_sha256,published_at:publishedAt};
-        await save(dir,appendActivity({...state,status:'published',publication}, await read(root,id).then(({receipt:current}) => current), 'episode', 'Episode published.', publishedAt, publication));
+        const publishedReceipt = await read(root,id).then(({receipt:current}) => current);
+        await save(dir,appendActivity({...state,status:'published',publication}, publishedReceipt, 'episode', 'Episode published.', publishedAt, publication));
+        // Fire-and-forget: the customer's copy of this order already has a real email address
+        // from Stripe checkout (jobFromCheckoutSession). Never let a slow/failed send turn a
+        // successful publish into an error -- the order is already durably 'published'.
+        if (publishedReceipt?.email) {
+          const { subject, text, html } = orderReadyEmail({ orderId: id, topic: publishedReceipt.topic, videoUrl: publication.url });
+          sendMail({ to: publishedReceipt.email, subject, text, html }).then((outcome) => {
+            if (!outcome.sent) {
+              console.error(JSON.stringify({ component: 'mail', event: 'order_ready_email_failed', order_id: id, outcome }));
+            }
+          });
+        }
       } else if (action === 'failed') {
         await body(req);
         if (!['rendering','publishing'].includes(state.status)) fail(409,'This job is no longer running.');
