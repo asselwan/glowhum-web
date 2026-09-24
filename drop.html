@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-nomoi-surface="glowhum.com">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -56,6 +56,21 @@
     :focus-visible{outline:3px solid var(--core);outline-offset:4px}
     [hidden]{display:none}
   </style>
+<!-- NOMOI funnel telemetry (privacy-safe): no cookies, no PII, sessionStorage UUID only; events land in surface.ux_signals via ingest.atlas.nomoi.ai. Probes send X-NOMOI-Test: 1 or ?nomoi_test=1. -->
+<script>
+(function(){try{
+  var S=(document.documentElement.getAttribute('data-nomoi-surface')||document.body&&document.body.getAttribute('data-nomoi-surface')||location.hostname).toLowerCase();
+  var EP='https://ingest.atlas.nomoi.ai/api/surface/ingest';
+  var sid;try{sid=sessionStorage.getItem('__nomoi_surface_session');if(!sid){sid=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2));sessionStorage.setItem('__nomoi_surface_session',sid);}}catch(e){sid=String(Math.random()).slice(2);}
+  var isTest=/[?&]nomoi_test=1/.test(location.search)||navigator.webdriver===true;
+  function emit(ev,p){try{var body=JSON.stringify({surface:S,event:ev,payload:Object.assign({path:location.pathname,is_test:isTest||undefined},p||{}),ts:new Date().toISOString(),session_id:sid});
+    var blob=new Blob([body],{type:'application/json'});if(navigator.sendBeacon&&navigator.sendBeacon(EP,blob))return;fetch(EP,{method:'POST',body:blob,keepalive:true}).catch(function(){});}catch(e){}}
+  window.nomoiFunnel=emit;
+  emit('page_view',{referrer_host:(document.referrer?new URL(document.referrer).host:null),viewport_w:innerWidth,viewport_h:innerHeight});
+  document.addEventListener('click',function(e){var t=e.target&&e.target.closest?e.target.closest('[data-nomoi-cta]'):null;if(t)emit('cta_click',{cta_id:t.getAttribute('data-nomoi-cta')});},true);
+  document.addEventListener('focusin',function(e){var t=e.target;if(t&&t.getAttribute&&t.getAttribute('data-nomoi-form'))emit('form_field_focus',{form_id:t.getAttribute('data-nomoi-form'),field_id:t.id||t.name||'field'});});
+}catch(e){}})();
+</script>
 </head>
 <body><main>
   <a href="/">Glowhum home</a>
@@ -74,7 +89,7 @@
       <div class="meta"><div class="name" id="fileName"></div><div class="size" id="fileSize"></div></div>
       <div class="check" id="fileCheck" aria-hidden="true">&#10003;</div>
     </div>
-    <button id="upload" type="submit">Save report</button>
+    <button id="upload" type="submit" data-nomoi-cta="drop_start">Save report</button>
     <progress id="progress" max="100" value="0" aria-label="Upload progress" hidden></progress>
   </form>
   <p id="notice" role="status" aria-live="polite"></p>
@@ -91,7 +106,7 @@
     <p id="progressText" class="progress-text"></p>
     <button id="refresh" type="button">Check status</button>
     <div class="actions" id="actions" hidden>
-      <button id="start" type="button">Make an unlisted video</button>
+      <button id="start" type="button" data-nomoi-cta="drop_start">Make an unlisted video</button>
       <p id="startHelp" class="small"></p>
     </div>
     <div class="preview" id="previewPanel" hidden>

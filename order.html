@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-nomoi-surface="glowhum.com">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -68,6 +68,21 @@
     .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
     [hidden]{display:none}
   </style>
+<!-- NOMOI funnel telemetry (privacy-safe): no cookies, no PII, sessionStorage UUID only; events land in surface.ux_signals via ingest.atlas.nomoi.ai. Probes send X-NOMOI-Test: 1 or ?nomoi_test=1. -->
+<script>
+(function(){try{
+  var S=(document.documentElement.getAttribute('data-nomoi-surface')||document.body&&document.body.getAttribute('data-nomoi-surface')||location.hostname).toLowerCase();
+  var EP='https://ingest.atlas.nomoi.ai/api/surface/ingest';
+  var sid;try{sid=sessionStorage.getItem('__nomoi_surface_session');if(!sid){sid=(crypto.randomUUID?crypto.randomUUID():String(Math.random()).slice(2));sessionStorage.setItem('__nomoi_surface_session',sid);}}catch(e){sid=String(Math.random()).slice(2);}
+  var isTest=/[?&]nomoi_test=1/.test(location.search)||navigator.webdriver===true;
+  function emit(ev,p){try{var body=JSON.stringify({surface:S,event:ev,payload:Object.assign({path:location.pathname,is_test:isTest||undefined},p||{}),ts:new Date().toISOString(),session_id:sid});
+    var blob=new Blob([body],{type:'application/json'});if(navigator.sendBeacon&&navigator.sendBeacon(EP,blob))return;fetch(EP,{method:'POST',body:blob,keepalive:true}).catch(function(){});}catch(e){}}
+  window.nomoiFunnel=emit;
+  emit('page_view',{referrer_host:(document.referrer?new URL(document.referrer).host:null),viewport_w:innerWidth,viewport_h:innerHeight});
+  document.addEventListener('click',function(e){var t=e.target&&e.target.closest?e.target.closest('[data-nomoi-cta]'):null;if(t)emit('cta_click',{cta_id:t.getAttribute('data-nomoi-cta')});},true);
+  document.addEventListener('focusin',function(e){var t=e.target;if(t&&t.getAttribute&&t.getAttribute('data-nomoi-form'))emit('form_field_focus',{form_id:t.getAttribute('data-nomoi-form'),field_id:t.id||t.name||'field'});});
+}catch(e){}})();
+</script>
 </head>
 <body>
   <main class="card">
@@ -133,6 +148,8 @@
           var order=result.body,status=titles[order.status]?order.status:'paid';
           state.textContent=titles[status];message.textContent=messages[status];message.className='message';details.hidden=false;document.getElementById('orderId').textContent=order.order_id;
           paintTracker(status);
+          // Funnel step "paid": the server confirmed a paid/rendering/published order; once per session, never on refunded (see .ainur/FUNNEL_TELEMETRY_2026_09_24.md).
+          try{if(status!=='refunded'&&window.nomoiFunnel&&!sessionStorage.getItem('__nomoi_checkout_completed')){sessionStorage.setItem('__nomoi_checkout_completed','1');window.nomoiFunnel('checkout_completed',{product_key:'glowhum',order_status:status});}}catch(e){}
           if(status==='rendering')showRenderingExtra(order.created_at,order.order_id);else hideRenderingExtra();
           var promise=document.getElementById('promise'),promiseText=document.getElementById('promiseText');
           if(status==='refunded'){promise.hidden=true;}
