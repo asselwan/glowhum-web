@@ -16,7 +16,7 @@ const pipelineStages = [
 ];
 const now = () => new Date().toISOString();
 const token = () => crypto.randomBytes(24).toString('hex');
-const config = () => ({enabled: process.env.GLOWHUM_DELIVERY_ENABLED === 'true' && (process.env.GLOWHUM_WORKER_TOKEN || '').length >= 32 && /^UC[\w-]{22}$/.test(process.env.GLOWHUM_YOUTUBE_CHANNEL_ID || ''), channel_id: process.env.GLOWHUM_YOUTUBE_CHANNEL_ID, destination: 'YouTube', visibility: 'private'});
+const config = () => ({enabled: process.env.GLOWHUM_DELIVERY_ENABLED === 'true' && (process.env.GLOWHUM_WORKER_TOKEN || '').length >= 32 && /^UC[\w-]{22}$/.test(process.env.GLOWHUM_YOUTUBE_CHANNEL_ID || ''), channel_id: process.env.GLOWHUM_YOUTUBE_CHANNEL_ID, destination: 'YouTube', visibility: 'unlisted'});
 function json(res, code, body) { res.writeHead(code, {'Content-Type':'application/json', 'Cache-Control':'no-store', 'Referrer-Policy':'no-referrer'}); res.end(JSON.stringify(body)); }
 function fail(code, message) { throw Object.assign(new Error(message), {code}); }
 function stageDefinition(id) { return pipelineStages.find((stage) => stage.id === id); }
@@ -198,7 +198,7 @@ export async function deliveryRoutes(req, res, pathname, root) {
           if (input.confirm !== true) fail(400,'Confirm that you want to make this video.');
           if (!/\.(md|txt|pdf)$/i.test(receipt.name) || receipt.size === 0) fail(400,'Choose a PDF, text or Markdown report with some content.');
           const requestedAt = now();
-          await save(dir,appendActivity(withPipeline({status:'queued',requested_at:requestedAt,source_sha256:receipt.sha256,destination:{service:'YouTube',channel_id:config().channel_id,visibility:'private'}}, receipt), receipt, 'pipeline', 'Pipeline queued.', requestedAt));
+          await save(dir,appendActivity(withPipeline({status:'queued',requested_at:requestedAt,source_sha256:receipt.sha256,destination:{service:'YouTube',channel_id:config().channel_id,visibility:'unlisted'}}, receipt), receipt, 'pipeline', 'Pipeline queued.', requestedAt));
         } else {
           if (!state.preview || input.preview_sha256 !== state.preview.sha256) fail(409,'The preview changed. Watch the current video before publishing.');
           if (input.confirm !== true) fail(400,'Confirm that you want to publish this video.');
@@ -281,9 +281,9 @@ export async function deliveryRoutes(req, res, pathname, root) {
         const input = await body(req);
         if (state.status === 'published' && input.video_id === state.publication.video_id && input.preview_sha256 === state.approved_sha256) return;
         if (state.status !== 'publishing') fail(409,'No publication is in progress.');
-        if (!/^[\w-]{11}$/.test(input.video_id || '') || input.channel_id !== state.destination.channel_id || input.visibility !== 'private' || !shaPattern.test(input.preview_sha256 || '') || input.preview_sha256 !== state.approved_sha256 || input.verified !== true) fail(400,'A confirmed publication matching the approved video and destination is required.');
+        if (!/^[\w-]{11}$/.test(input.video_id || '') || input.channel_id !== state.destination.channel_id || input.visibility !== 'unlisted' || !shaPattern.test(input.preview_sha256 || '') || input.preview_sha256 !== state.approved_sha256 || input.verified !== true) fail(400,'A confirmed publication matching the approved video and destination is required.');
         const publishedAt = now();
-        const publication = {service:'YouTube',video_id:input.video_id,url:`https://www.youtube.com/watch?v=${input.video_id}`,channel_id:input.channel_id,visibility:'private',preview_sha256:input.preview_sha256,published_at:publishedAt};
+        const publication = {service:'YouTube',video_id:input.video_id,url:`https://www.youtube.com/watch?v=${input.video_id}`,channel_id:input.channel_id,visibility:'unlisted',preview_sha256:input.preview_sha256,published_at:publishedAt};
         const publishedReceipt = await read(root,id).then(({receipt:current}) => current);
         await save(dir,appendActivity({...state,status:'published',publication}, publishedReceipt, 'episode', 'Episode published.', publishedAt, publication));
         // Fire-and-forget: the customer's copy of this order already has a real email address

@@ -60,7 +60,7 @@
 <body><main>
   <a href="/">Glowhum home</a>
   <h1>Drop a report.</h1>
-  <p>Save your report here. Then watch the work move from report to private video.</p>
+  <p>Save your report here. Then watch the work move from report to unlisted video.</p>
   <form id="dropForm">
     <label for="report">Report</label>
     <div class="dropzone" id="dropzone">
@@ -80,7 +80,7 @@
   <p id="notice" role="status" aria-live="polite"></p>
   <section id="saved" hidden aria-label="Saved report">
     <h2>Your report</h2><dl><dt>File</dt><dd id="name"></dd><dt>Status</dt><dd id="state"></dd></dl>
-    <p><a id="returnLink">Keep this private link to return here</a></p>
+    <p><a id="returnLink">Keep this link to return here</a></p>
     <div class="steps" id="steps" aria-label="Delivery status">
       <div class="step" data-step="report"><span class="step-mark">1</span><span>Report</span></div>
       <div class="step" data-step="script"><span class="step-mark">2</span><span>Script</span></div>
@@ -91,7 +91,7 @@
     <p id="progressText" class="progress-text"></p>
     <button id="refresh" type="button">Check status</button>
     <div class="actions" id="actions" hidden>
-      <button id="start" type="button">Make a private video</button>
+      <button id="start" type="button">Make an unlisted video</button>
       <p id="startHelp" class="small"></p>
     </div>
     <div class="preview" id="previewPanel" hidden>
@@ -99,14 +99,14 @@
       <p>Watch the saved video before you decide to publish it.</p>
       <video id="previewVideo" controls playsinline preload="metadata"></video>
       <p id="previewInfo" class="small"></p>
-      <label id="publishChoice" class="choice" hidden><input id="publishConfirm" type="checkbox"> I watched this video and want it published privately.</label>
-      <button id="publish" type="button" hidden>Publish privately</button>
+      <label id="publishChoice" class="choice" hidden><input id="publishConfirm" type="checkbox"> I watched this video and want it published as unlisted.</label>
+      <button id="publish" type="button" hidden>Publish as unlisted</button>
       <p id="publishHelp" class="small"></p>
     </div>
     <div class="published" id="publishedPanel" hidden>
       <h2>Published</h2>
       <p id="publishedText"></p>
-      <a id="publishedLink" target="_blank" rel="noopener noreferrer">Watch the private video</a>
+      <a id="publishedLink" target="_blank" rel="noopener noreferrer">Watch the unlisted video</a>
     </div>
     <h2>Receipt</h2><p>Your receipt keeps the file name, size, time, and file fingerprint.</p>
     <pre id="receipt"></pre><a id="download" download="glowhum-receipt.json">Save receipt</a>
@@ -135,9 +135,9 @@
         queued: 'Your video is queued.',
         rendering: 'Your video is being made.',
         ready: 'Your video is ready to preview.',
-        publish_queued: 'Your private publish is queued.',
-        publishing: 'Your private video is being published.',
-        published: 'Your private video is published.',
+        publish_queued: 'Your unlisted publish is queued.',
+        publishing: 'Your unlisted video is being published.',
+        published: 'Your unlisted video is published.',
         failed: 'We could not finish the video.',
         publication_unknown: 'We could not confirm the publish yet.'
       }[status] || 'Your report is saved.';
@@ -167,7 +167,7 @@
         : status === 'received' && receipt.delivery_available === false
           ? 'Video making is not connected yet. Your report is safe here.'
           : '';
-      if (status === 'received') start.textContent = 'Make a private video';
+      if (status === 'received') start.textContent = 'Make an unlisted video';
       const preview = receipt.preview;
       const previewPanel = el('previewPanel');
       const hasPreview = Boolean(preview && preview.sha256);
@@ -176,7 +176,7 @@
       el('publish').hidden = !hasPreview || !['ready'].includes(status);
       el('publish').disabled = false;
       el('publishHelp').textContent = status === 'published'
-        ? 'This video stays private on the destination.'
+        ? 'This video stays unlisted on the destination -- not searchable, but viewable by anyone with the link.'
         : status === 'publication_unknown'
           ? 'Check status before trying anything again.'
           : '';
@@ -187,7 +187,7 @@
       const publication = receipt.publication;
       el('publishedPanel').hidden = status !== 'published' || !publication;
       if (status === 'published' && publication) {
-        el('publishedText').textContent = 'Published privately on ' + publication.service + '.';
+        el('publishedText').textContent = 'Published as unlisted on ' + publication.service + '.';
         el('publishedLink').href = publication.url;
       }
     }
@@ -238,7 +238,7 @@
         const body = await response.json();
         if (!response.ok) throw new Error(body.error || 'This step could not be saved.');
         show(body);
-        el('notice').textContent = action === 'start' ? 'Your video is queued.' : 'Your private publish is queued.';
+        el('notice').textContent = action === 'start' ? 'Your video is queued.' : 'Your unlisted publish is queued.';
       } catch (error) {
         el('notice').textContent = error.message || 'This step could not be saved.';
         el('notice').className = 'error';

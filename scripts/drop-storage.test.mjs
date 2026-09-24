@@ -41,9 +41,9 @@ test('report bytes and receipt remain intact, and failed uploads leave no saved 
     const res = response();
     assert.equal(await serveStatic({url:'/drop'}, res), true);
     assert.equal(res.status, 200);
-    assert.match(res.body.toString(), /Make a private video/);
+    assert.match(res.body.toString(), /Make an unlisted video/);
     assert.match(res.body.toString(), /Preview/);
-    assert.match(res.body.toString(), /Publish privately/);
+    assert.match(res.body.toString(), /Publish as unlisted/);
     assert.match(res.body.toString(), /Save receipt/);
     assert.doesNotMatch(res.body.toString(), /[—–]|(?:^|\s)-(?=\s|$)|\bAI\b|artificial intelligence/i);
   } finally {

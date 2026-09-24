@@ -187,7 +187,7 @@ test("a paid Stripe order is bridged into the delivery pipeline, driven queue to
     const complete = await fetch(`http://127.0.0.1:${port}/api/worker/${deliveryId}/complete`, {
       method: "POST",
       headers: { authorization: `Bearer ${workerToken}`, "x-worker-claim": job2.claim, "content-type": "application/json" },
-      body: JSON.stringify({ video_id: fakeVideoId, channel_id: job2.destination.channel_id, visibility: "private", preview_sha256: readyState.preview.sha256, verified: true }),
+      body: JSON.stringify({ video_id: fakeVideoId, channel_id: job2.destination.channel_id, visibility: "unlisted", preview_sha256: readyState.preview.sha256, verified: true }),
     });
     assert.equal(complete.status, 200);
     assert.equal((await complete.json()).status, "published");
