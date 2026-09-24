@@ -57,8 +57,8 @@ export function orderReadyEmail({ orderId, topic, videoUrl }) {
   const text = [
     `Your Glowhum episode ${topicLine}is ready.`,
     '',
-    `Watch and download your episode and cuts: ${link}`,
-    videoUrl ? `Direct video link: ${videoUrl}` : null,
+    `Watch and download your episode and three vertical cuts: ${link}`,
+    videoUrl ? `Direct video link (unlisted, only people with this link can view it): ${videoUrl}` : null,
     '',
     `Order: ${orderId}`,
     '',
@@ -66,8 +66,8 @@ export function orderReadyEmail({ orderId, topic, videoUrl }) {
   ].filter(Boolean).join('\n');
   const html = [
     `<p>Your Glowhum episode ${topicLine}is ready.</p>`,
-    `<p><a href="${link}">Watch and download your episode and cuts</a></p>`,
-    videoUrl ? `<p>Direct video link: <a href="${videoUrl}">${videoUrl}</a></p>` : '',
+    `<p><a href="${link}">Watch and download your episode and three vertical cuts</a></p>`,
+    videoUrl ? `<p>Direct video link (unlisted, only people with this link can view it): <a href="${videoUrl}">${videoUrl}</a></p>` : '',
     `<p style="color:#666;font-size:13px">Order: ${orderId}</p>`,
     '<p>If anything looks wrong with this delivery, reply to this email and we will fix it.</p>',
   ].filter(Boolean).join('\n');
