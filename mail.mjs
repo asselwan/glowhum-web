@@ -1,7 +1,6 @@
-import https from 'node:https';
-
-// Transactional delivery email for glowhum orders. Uses Mailgun's HTTP API directly (no SDK) so
-// this stays a single dependency-free file, matching the rest of this repo.
+// Transactional delivery email for glowhum orders. Uses Mailgun's HTTP API via fetch() (already
+// the pattern this repo uses for outbound Stripe calls in server.mjs) so this stays a single
+// dependency-free file with no separate test-only transport injection needed.
 //
 // Domain: MAILGUN_DOMAIN defaults to bynomoi.com, a verified NOMOI sending domain with zero
 // 30-day send volume and clean SPF/DKIM/DMARC (checked live 2026-09-24) -- deliberately NOT
@@ -10,45 +9,38 @@ import https from 'node:https';
 const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY || '';
 const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN || 'bynomoi.com';
 const MAILGUN_FROM = process.env.MAILGUN_FROM || `Glowhum <delivery@${MAILGUN_DOMAIN}>`;
-const MAILGUN_API_BASE = process.env.MAILGUN_API_BASE || 'api.mailgun.net';
+// Full base URL (protocol + host [+ port]), matching STRIPE_API_BASE_URL's own pattern in
+// server.mjs -- tests point this at a local http:// fake Mailgun server.
+const MAILGUN_API_BASE = process.env.MAILGUN_API_BASE || 'https://api.mailgun.net';
 
 export function mailConfigured() {
   return Boolean(MAILGUN_API_KEY && MAILGUN_DOMAIN);
 }
 
-// Injectable for tests: pass a fake `request` to avoid a real network call.
-export function sendMail({ to, subject, text, html }, { request = https.request } = {}) {
+export async function sendMail({ to, subject, text, html }) {
   if (!mailConfigured()) {
-    return Promise.resolve({ sent: false, reason: 'mail_not_configured' });
+    return { sent: false, reason: 'mail_not_configured' };
   }
   if (!to || !subject || !text) {
-    return Promise.resolve({ sent: false, reason: 'missing_fields' });
+    return { sent: false, reason: 'missing_fields' };
   }
-  const body = new URLSearchParams({ from: MAILGUN_FROM, to, subject, text, ...(html ? { html } : {}) }).toString();
-  return new Promise((resolve) => {
-    const req = request(
-      {
-        hostname: MAILGUN_API_BASE,
-        path: `/v3/${MAILGUN_DOMAIN}/messages`,
-        method: 'POST',
-        auth: `api:${MAILGUN_API_KEY}`,
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) },
+  const body = new URLSearchParams({ from: MAILGUN_FROM, to, subject, text, ...(html ? { html } : {}) });
+  try {
+    const res = await fetch(`${MAILGUN_API_BASE}/v3/${MAILGUN_DOMAIN}/messages`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${Buffer.from(`api:${MAILGUN_API_KEY}`).toString('base64')}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      (res) => {
-        let raw = '';
-        res.on('data', (chunk) => { raw += chunk; });
-        res.on('end', () => {
-          let parsed = null;
-          try { parsed = JSON.parse(raw); } catch { /* Mailgun always returns JSON; leave null on malformed body */ }
-          const sent = res.statusCode >= 200 && res.statusCode < 300;
-          resolve({ sent, status: res.statusCode, id: parsed?.id || null, message: parsed?.message || raw.slice(0, 200) });
-        });
-      },
-    );
-    req.on('error', (err) => resolve({ sent: false, reason: 'request_error', error: err.message }));
-    req.write(body);
-    req.end();
-  });
+      body,
+      signal: AbortSignal.timeout(15000),
+    });
+    let parsed = null;
+    try { parsed = await res.json(); } catch { /* Mailgun always returns JSON; leave null on malformed body */ }
+    return { sent: res.ok, status: res.status, id: parsed?.id || null, message: parsed?.message || null };
+  } catch (error) {
+    return { sent: false, reason: 'request_error', error: error?.message };
+  }
 }
 
 export function orderReadyEmail({ orderId, topic, videoUrl }) {

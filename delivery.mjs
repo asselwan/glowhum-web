@@ -290,7 +290,7 @@ export async function deliveryRoutes(req, res, pathname, root) {
         // from Stripe checkout (jobFromCheckoutSession). Never let a slow/failed send turn a
         // successful publish into an error -- the order is already durably 'published'.
         if (publishedReceipt?.email) {
-          const { subject, text, html } = orderReadyEmail({ orderId: id, topic: publishedReceipt.topic, videoUrl: publication.url });
+          const { subject, text, html } = orderReadyEmail({ orderId: publishedReceipt.stripe_order_id || id, topic: publishedReceipt.topic, videoUrl: publication.url });
           sendMail({ to: publishedReceipt.email, subject, text, html }).then((outcome) => {
             if (!outcome.sent) {
               console.error(JSON.stringify({ component: 'mail', event: 'order_ready_email_failed', order_id: id, outcome }));

@@ -1,64 +1,75 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { EventEmitter } from 'node:events';
 
 process.env.MAILGUN_API_KEY = 'key-test-1234567890';
 process.env.MAILGUN_DOMAIN = 'bynomoi.com';
 
 const { sendMail, mailConfigured, orderReadyEmail, orderPaidEmail } = await import('../mail.mjs');
 
-function fakeRequest({ statusCode = 200, responseBody = { id: '<msg-1@bynomoi.com>', message: 'Queued. Thank you.' } } = {}) {
+function withFakeFetch(handler, run) {
+  const realFetch = globalThis.fetch;
   const calls = [];
-  function request(options, callback) {
-    calls.push(options);
-    const req = new EventEmitter();
-    req.write = () => {};
-    req.end = () => {
-      const res = new EventEmitter();
-      res.statusCode = statusCode;
-      callback(res);
-      res.emit('data', JSON.stringify(responseBody));
-      res.emit('end');
-    };
-    return req;
-  }
-  return { request, calls };
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return handler(url, options);
+  };
+  return run(calls).finally(() => { globalThis.fetch = realFetch; });
+}
+
+function jsonResponse(status, body) {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
 
 test('mailConfigured is true only when both key and domain are set', () => {
   assert.equal(mailConfigured(), true);
 });
 
-test('sendMail posts to the Mailgun v3 messages endpoint with basic auth and form body', async () => {
-  const { request, calls } = fakeRequest();
-  const outcome = await sendMail(
-    { to: 'customer@example.com', subject: 'Your Glowhum episode is ready', text: 'ready', html: '<p>ready</p>' },
-    { request },
-  );
-  assert.equal(outcome.sent, true);
-  assert.equal(outcome.id, '<msg-1@bynomoi.com>');
-  assert.equal(calls.length, 1);
-  const options = calls[0];
-  assert.equal(options.method, 'POST');
-  assert.equal(options.path, '/v3/bynomoi.com/messages');
-  assert.equal(options.auth, 'api:key-test-1234567890');
-  assert.equal(options.headers['Content-Type'], 'application/x-www-form-urlencoded');
-});
+test('sendMail posts to the Mailgun v3 messages endpoint with basic auth and form body', () =>
+  withFakeFetch(
+    () => jsonResponse(200, { id: '<msg-1@bynomoi.com>', message: 'Queued. Thank you.' }),
+    async (calls) => {
+      const outcome = await sendMail({ to: 'customer@example.com', subject: 'Your Glowhum episode is ready', text: 'ready', html: '<p>ready</p>' });
+      assert.equal(outcome.sent, true);
+      assert.equal(outcome.id, '<msg-1@bynomoi.com>');
+      assert.equal(calls.length, 1);
+      const [{ url, options }] = calls;
+      assert.equal(url, 'https://api.mailgun.net/v3/bynomoi.com/messages');
+      assert.equal(options.method, 'POST');
+      assert.equal(options.headers.Authorization, `Basic ${Buffer.from('api:key-test-1234567890').toString('base64')}`);
+      assert.ok(options.body instanceof URLSearchParams);
+    },
+  ));
 
-test('sendMail reports a non-2xx Mailgun response as not sent, without throwing', async () => {
-  const { request } = fakeRequest({ statusCode: 401, responseBody: { message: 'Forbidden' } });
-  const outcome = await sendMail({ to: 'customer@example.com', subject: 'x', text: 'x' }, { request });
-  assert.equal(outcome.sent, false);
-  assert.equal(outcome.status, 401);
-});
+test('sendMail reports a non-2xx Mailgun response as not sent, without throwing', () =>
+  withFakeFetch(
+    () => jsonResponse(401, { message: 'Forbidden' }),
+    async () => {
+      const outcome = await sendMail({ to: 'customer@example.com', subject: 'x', text: 'x' });
+      assert.equal(outcome.sent, false);
+      assert.equal(outcome.status, 401);
+    },
+  ));
 
-test('sendMail refuses to send with a missing recipient, subject or body -- never a blank email', async () => {
-  const { request, calls } = fakeRequest();
-  const outcome = await sendMail({ to: '', subject: 'x', text: 'x' }, { request });
-  assert.equal(outcome.sent, false);
-  assert.equal(outcome.reason, 'missing_fields');
-  assert.equal(calls.length, 0);
-});
+test('sendMail reports a network failure as not sent, without throwing', () =>
+  withFakeFetch(
+    () => { throw new Error('ECONNREFUSED'); },
+    async () => {
+      const outcome = await sendMail({ to: 'customer@example.com', subject: 'x', text: 'x' });
+      assert.equal(outcome.sent, false);
+      assert.equal(outcome.reason, 'request_error');
+    },
+  ));
+
+test('sendMail refuses to send with a missing recipient, subject or body -- never a blank email', () =>
+  withFakeFetch(
+    () => jsonResponse(200, {}),
+    async (calls) => {
+      const outcome = await sendMail({ to: '', subject: 'x', text: 'x' });
+      assert.equal(outcome.sent, false);
+      assert.equal(outcome.reason, 'missing_fields');
+      assert.equal(calls.length, 0);
+    },
+  ));
 
 test('orderReadyEmail links to the order-status page and includes the direct video link', () => {
   const { subject, text, html } = orderReadyEmail({ orderId: 'cs_live_abc123', topic: 'A calm morning routine', videoUrl: 'https://www.youtube.com/watch?v=xyz' });

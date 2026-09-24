@@ -292,6 +292,92 @@ function revocationPath(orderId) {
   return path.join(GLOWHUM_DROPS_DIR, "revocations", `${orderId}.json`);
 }
 
+// ---- Stripe order -> delivery pipeline bridge -----------------------------------------------
+// The Stripe-paid order schema (ORDER_STATUSES above) and delivery.mjs's queue/worker pipeline
+// are two separate id spaces: a Stripe checkout session id ("cs_live_...", mixed case + "_")
+// never matches delivery.mjs's idPattern (/^[a-z0-9]{12,64}$/), so a paid order could never be
+// queued/claimed/published through the pipeline at all. This bridge writes a delivery.mjs-shaped
+// receipt+state at a deterministic id derived from the Stripe order id, so a paid order's episode
+// actually gets made and delivered through the one pipeline that works (proven end-to-end
+// 2026-09-24). The forward direction (order_id -> delivery id) is a pure function, recomputed on
+// every read; the backward direction (delivery id -> order_id, needed so the ready-email links to
+// the customer's own /order?order_id=<stripe id>) is stored as a field on the bridged receipt.
+function mappedDeliveryId(orderId) {
+  return crypto.createHash("sha256").update(orderId).digest("hex").slice(0, 32);
+}
+
+// Dain ops-alert rail. Bearer + explicit User-Agent are both load-bearing: an unauthenticated
+// POST 401s, and Cloudflare in front of app.dainbot.com bans urllib/no-UA clients with a 403
+// (infra_cloudflare_bans_python_urllib_on_the_dain_ops_alert_rail_2026_09_24) -- the same class of
+// mistake this fetch()-based caller avoids by setting User-Agent explicitly. Returns true only on
+// an observed 2xx; never throws, so a failed alert can never take down the caller.
+async function alertDain(title, detail, severity = "warning") {
+  const secret = process.env.MCP_INTERNAL_SHARED_SECRET || "";
+  if (!secret) {
+    console.error(JSON.stringify({ component: "ops-alert", event: "no_secret_configured", title }));
+    return false;
+  }
+  try {
+    const res = await fetch("https://app.dainbot.com/api/ops-alert", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${secret}`,
+        "User-Agent": "nomoi-glowhum-web/1.0",
+      },
+      body: JSON.stringify({ title, detail, source: "glowhum-web", severity }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) {
+      console.error(JSON.stringify({ component: "ops-alert", event: "non_2xx", status: res.status, title }));
+    }
+    return res.ok;
+  } catch (error) {
+    console.error(JSON.stringify({ component: "ops-alert", event: "request_failed", error: error?.message, title }));
+    return false;
+  }
+}
+
+// Writes a delivery.mjs-compatible queue entry for a freshly-paid order. Idempotent at the file
+// layer (writeImmutableFile refuses to overwrite with different content) independent of the
+// result.created gate the caller already applies, so this is safe even if ever called twice.
+async function bridgeToDeliveryPipeline(job) {
+  const deliveryId = mappedDeliveryId(job.order_id);
+  const dir = orderDirectory(deliveryId);
+  const request = requestContents(job);
+  const sha256 = crypto.createHash("sha256").update(request).digest("hex");
+  const receiptContents = `${JSON.stringify({
+    id: deliveryId,
+    name: "request.md",
+    size: request.length,
+    sha256,
+    received_at: job.created_at,
+    status: "received",
+    email: job.email,
+    reordered_from: null,
+    stripe_order_id: job.order_id,
+    topic: job.topic,
+  }, null, 2)}\n`;
+  await writeImmutableFile(path.join(dir, "request.md"), request);
+  const receiptResult = await writeImmutableFile(path.join(dir, "receipt.json"), receiptContents);
+  if (!receiptResult.created) return { created: false, deliveryId };
+  // Only the first writer (receiptResult.created === true) advances state past "received" --
+  // this makes the bridge itself idempotent even without the caller's result.created gate.
+  const queuedState = {
+    status: "queued",
+    requested_at: job.created_at,
+    source_sha256: sha256,
+    destination: { service: "YouTube", channel_id: process.env.GLOWHUM_YOUTUBE_CHANNEL_ID || null, visibility: "private" },
+  };
+  const statePath = path.join(dir, "delivery.json");
+  try {
+    await fs.writeFile(statePath, JSON.stringify(queuedState), { flag: "wx" });
+  } catch (error) {
+    if (error?.code !== "EEXIST") throw error;
+  }
+  return { created: true, deliveryId };
+}
+
 async function writeImmutableFile(destination, contents) {
   await fs.mkdir(path.dirname(destination), { recursive: true });
   const temporary = `${destination}.tmp-${crypto.randomBytes(8).toString("hex")}`;
@@ -653,6 +739,27 @@ async function handleStripeWebhook(req, res) {
   try {
     await claimEvent(job.event_id, job.order_id);
     const result = await writeOrderOnce(job);
+    // Bridge BEFORE responding (fast local file writes, not a network call) so a bridge failure
+    // is known before we decide the response -- unlike the email below, silently losing this
+    // means the order can NEVER be fulfilled through the pipeline. Only on first write; a
+    // Stripe retry of an already-bridged order must not re-alert.
+    if (result.created) {
+      try {
+        await bridgeToDeliveryPipeline(result.job);
+      } catch (bridgeError) {
+        console.error(JSON.stringify({ component: "bridge", event: "bridge_to_delivery_failed", order_id: result.job.order_id, error: bridgeError?.message }));
+        // Order write already succeeded -- returning 500 here would make Stripe retry a step
+        // that a retry cannot fix (writeOrderOnce would just no-op on result.created===false
+        // next time, so the bridge would never be attempted again). Awaited, not fire-and-forget:
+        // this is the "keep checkout honest" floor -- a paid order with no path to fulfillment
+        // must reach a human, not sit silently.
+        await alertDain(
+          "glowhum: paid order has no delivery-pipeline bridge",
+          `order_id=${result.job.order_id} email=${result.job.email || "none"} error=${bridgeError?.message || "unknown"} -- this customer paid and cannot currently be fulfilled through the pipeline. Needs founder attention.`,
+          "critical",
+        );
+      }
+    }
     sendJson(res, 200, { received: true, created: result.created, order_id: result.job.order_id });
     // Fire-and-forget: never let a slow/failed email turn a successful order write into a
     // webhook error (Stripe would retry an already-stored order). Only on first write, not
@@ -736,6 +843,23 @@ function validIsoDate(value) {
   return typeof value === "string" && !Number.isNaN(Date.parse(value));
 }
 
+// The Stripe receipt's own status only ever holds "paid" or "refunded" (nothing in this codebase
+// ever writes "rendering"/"published" onto it -- see bridgeToDeliveryPipeline above). While the
+// order is "paid", the REAL state lives in the bridged delivery.mjs pipeline; this translates the
+// pipeline's queued/rendering/ready/publish_queued/publishing/published/failed vocabulary into
+// the order-status vocabulary order.html already knows how to render.
+async function bridgedOrderView(orderId) {
+  try {
+    const view = await publicDrop(path.join(GLOWHUM_DROPS_DIR, "drops"), mappedDeliveryId(orderId));
+    if (view.status === "published" && view.publication?.url && view.publication?.published_at) {
+      return { status: "published", video_url: view.publication.url, published_at: view.publication.published_at };
+    }
+    return { status: "rendering", video_url: null, published_at: null };
+  } catch {
+    return null; // not bridged yet (webhook still in flight) -- caller falls back to "paid"
+  }
+}
+
 async function handleOrderStatus(res, id) {
   if (!validOrderId(id)) return sendJson(res, 404, { error: "Not found" });
   try {
@@ -743,15 +867,22 @@ async function handleOrderStatus(res, id) {
     if (job.order_id !== id || !ORDER_STATUSES.has(job.status) || !validIsoDate(job.created_at)) {
       return sendJson(res, 404, { error: "Not found" });
     }
-    if (job.status === "published" && (!validHttpsUrl(job.video_url) || !validIsoDate(job.published_at))) {
+    let status = job.status;
+    let videoUrl = job.status === "published" ? job.video_url : null;
+    let publishedAt = job.status === "published" ? job.published_at : null;
+    if (job.status === "paid") {
+      const bridged = await bridgedOrderView(id);
+      if (bridged) { status = bridged.status; videoUrl = bridged.video_url; publishedAt = bridged.published_at; }
+    }
+    if (status === "published" && (!validHttpsUrl(videoUrl) || !validIsoDate(publishedAt))) {
       return sendJson(res, 404, { error: "Not found" });
     }
     sendJson(res, 200, {
       order_id: job.order_id,
-      status: job.status,
+      status,
       created_at: job.created_at,
-      video_url: job.status === "published" ? job.video_url : null,
-      published_at: job.status === "published" ? job.published_at : null,
+      video_url: status === "published" ? videoUrl : null,
+      published_at: status === "published" ? publishedAt : null,
     });
   } catch {
     sendJson(res, 404, { error: "Not found" });
