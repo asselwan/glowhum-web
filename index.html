@@ -4,31 +4,35 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0f0b08">
-  <title>GLOWHUM | One episode</title>
-  <meta name="description" content="Order one finished episode from a topic or report URL.">
+  <title>GLOWHUM | One finished episode</title>
+  <meta name="description" content="Send a topic or a report link. Get one finished episode and three vertical cuts, delivered by email. One payment, full refund if we cannot deliver.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="manifest" href="site.webmanifest">
   <!-- Design read: reading glowhum.com as a one-item order desk for creators buying one finished
        episode, with a night-broadcast-booth language, leaning on Inter-900 display type and a
        three-frame reel-advance motion signature (the path is a literal filmstrip: topic, cut,
-       cut, cut). prm_a611c7ea 2026-09-08 world-class revisit. -->
+       cut, cut). prm_a611c7ea 2026-09-08 world-class revisit.
+       Conversion pass 2026-09-24: mobile-first single column, one promise, price and delivery
+       time above the fold, one primary button (the checkout submit). The sample slot renders only
+       when data-sample-url on #sample holds a real unlisted YouTube link. -->
   <style>
     :root{--night:#0f0b08;--panel:#1c150f;--line:#3a2c1f;--ink:#f6efe4;--dim:#bba692;--core:#c4976b;--aura:#e0955c;--bad:#e2897d;--ok:#8fd9a8;--rad:16px}
     *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at 50% -8%,#2c2015 0,var(--night) 42rem);color:var(--ink);font:17px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
-    .wrap{width:100%;max-width:1000px;margin-inline:auto;padding-inline:20px}
-    .top{display:flex;justify-content:space-between;align-items:center;padding-block:25px;position:relative}
+    .wrap{width:100%;max-width:1000px;margin-inline:auto;padding-inline:16px}
+    .top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-block:16px;position:relative}
     .top::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;background:linear-gradient(90deg,transparent,var(--line) 20%,var(--line) 80%,transparent)}
     .brand{color:var(--ink);font-weight:900;letter-spacing:.13em;text-decoration:none}.brand b{color:var(--core)}
+    .top nav{display:flex;gap:14px;font-size:14px;white-space:nowrap}
     .status-link{color:var(--dim);font-weight:700;text-decoration:none;transition:color .18s cubic-bezier(.16,1,.3,1)}
     @media(hover:hover) and (pointer:fine){.status-link:hover{color:var(--core)}}
-    main{padding-block:5vh 76px}
-    .hero{text-align:center;margin:0 auto 30px;max-width:730px;opacity:0;animation:rise .7s cubic-bezier(.16,1,.3,1) .05s forwards}
-    .eyebrow{color:var(--core);font-size:14px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
-    .hero h1{font-size:clamp(44px,8vw,82px);letter-spacing:-.045em;line-height:1;margin:12px 0 20px}
+    main{padding-block:22px 56px}
+    .hero{margin:0 0 22px;opacity:0;animation:rise .7s cubic-bezier(.16,1,.3,1) .05s forwards}
+    .eyebrow{color:var(--core);font-size:13px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}
+    .hero h1{font-size:clamp(34px,9vw,72px);letter-spacing:-.04em;line-height:1.02;margin:10px 0 14px}
     .hero h1 span{color:var(--core)}
-    .hero p{color:var(--dim);font-size:clamp(18px,2.5vw,22px);margin:0 auto;max-width:620px}
-    .reel{display:flex;justify-content:center;gap:6px;margin:26px 0 4px}
+    .hero p{color:var(--dim);font-size:clamp(17px,2.4vw,21px);margin:0;max-width:640px}
+    .reel{display:flex;gap:6px;margin:18px 0 0}
     .reel i{width:26px;height:4px;border-radius:2px;background:var(--line);opacity:0;animation:frame .6s cubic-bezier(.16,1,.3,1) forwards}
     .reel i:nth-child(1){animation-delay:.55s;background:var(--core)}
     .reel i:nth-child(2){animation-delay:.68s}
@@ -36,44 +40,60 @@
     .reel i:nth-child(4){animation-delay:.94s}
     @keyframes frame{from{opacity:0;transform:scaleX(.4)}to{opacity:1;transform:scaleX(1)}}
     @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
-    @media(prefers-reduced-motion: reduce){.hero,.reel i,.steps li,.card{animation:none!important;opacity:1!important;transform:none!important}}
-    .steps{list-style:none;display:flex;justify-content:center;gap:10px;flex-wrap:wrap;padding:0;margin:0 auto 40px;max-width:640px}
-    .steps li{flex:1;min-width:160px;background:color-mix(in srgb,var(--panel) 80%,transparent);border:1px solid var(--line);border-radius:var(--rad);padding:14px 16px;text-align:left;opacity:0;transform:translateY(10px);animation:rise .55s cubic-bezier(.16,1,.3,1) forwards}
-    .steps li:nth-child(1){animation-delay:.55s}.steps li:nth-child(2){animation-delay:.62s}.steps li:nth-child(3){animation-delay:.69s}
-    .steps b{display:block;color:var(--core);font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px}
-    .steps span{color:var(--ink);font-weight:700;font-size:15px}
-    @media(max-width:640px){.steps{flex-direction:column}}
-    .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:20px;align-items:start}
-    .card{background:color-mix(in srgb,var(--panel) 93%,transparent);border:1px solid var(--line);border-radius:20px;padding:30px;box-shadow:0 18px 60px #05030066;opacity:0;transform:translateY(14px);animation:rise .6s cubic-bezier(.16,1,.3,1) .78s forwards}
-    .card h2{font-size:25px;line-height:1.2;margin:0 0 7px}
-    .muted{color:var(--dim);margin:0 0 24px}
-    .field{display:block;font-weight:800;margin:17px 0}
+    .facts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 22px;padding:0;list-style:none}
+    .facts li{background:color-mix(in srgb,var(--panel) 85%,transparent);border:1px solid var(--line);border-radius:var(--rad);padding:12px 14px}
+    .facts b{display:block;color:var(--core);font-size:12px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;margin-bottom:2px}
+    .facts span{font-weight:700}
+    .facts .price{font-size:26px;font-weight:900;letter-spacing:-.03em;color:var(--ink)}
+    .facts .wide{grid-column:1/-1}
+    .facts .wide span{font-weight:500;color:var(--dim);font-size:15px}
+    .sample{margin:0 0 22px}
+    .sample h2{font-size:18px;margin:0 0 10px}
+    .sample .frame{position:relative;aspect-ratio:16/9;border-radius:var(--rad);overflow:hidden;border:1px solid var(--line);background:#000}
+    .sample iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+    .layout{display:grid;grid-template-columns:1fr;gap:20px;align-items:start}
+    .card{background:color-mix(in srgb,var(--panel) 93%,transparent);border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:0 18px 60px #05030066;opacity:0;transform:translateY(14px);animation:rise .6s cubic-bezier(.16,1,.3,1) .3s forwards}
+    .card h2{font-size:23px;line-height:1.2;margin:0 0 6px}
+    .muted{color:var(--dim);margin:0 0 18px}
+    .field{display:block;font-weight:800;margin:15px 0}
     .field span{display:block;margin-bottom:7px}
     .hint{color:var(--dim);font-size:14px;font-weight:600}
-    .field input,.field textarea{width:100%;resize:vertical;border:1px solid var(--line);border-radius:var(--rad);background:#120d09;color:var(--ink);font:inherit;padding:13px;transition:border-color .18s cubic-bezier(.16,1,.3,1)}
+    .field input,.field textarea{width:100%;resize:vertical;border:1px solid var(--line);border-radius:var(--rad);background:#120d09;color:var(--ink);font:inherit;font-size:16px;padding:13px;transition:border-color .18s cubic-bezier(.16,1,.3,1)}
     .field input:focus,.field textarea:focus{outline:2px solid var(--core);outline-offset:2px}
-    .or{color:var(--dim);font-size:14px;font-weight:800;text-align:center;margin:13px 0}
-    .checkout{position:relative;width:100%;border:0;border-radius:var(--rad);background:linear-gradient(100deg,var(--core),var(--aura));color:#241206;cursor:pointer;font:900 18px/1.2 inherit;padding:16px 20px;margin-top:8px;transition:transform .12s cubic-bezier(.16,1,.3,1),box-shadow .18s cubic-bezier(.16,1,.3,1)}
+    .or{color:var(--dim);font-size:14px;font-weight:800;text-align:center;margin:10px 0}
+    .checkout{position:relative;width:100%;min-height:54px;border:0;border-radius:var(--rad);background:linear-gradient(100deg,var(--core),var(--aura));color:#241206;cursor:pointer;font-family:inherit;font-size:18px;font-weight:900;line-height:1.2;padding:16px 20px;margin-top:8px;transition:transform .12s cubic-bezier(.16,1,.3,1),box-shadow .18s cubic-bezier(.16,1,.3,1)}
     @media(hover:hover) and (pointer:fine){.checkout:not(:disabled):hover{box-shadow:0 10px 30px -8px color-mix(in srgb,var(--core) 55%,transparent)}}
     .checkout:not(:disabled):active{transform:scale(.98)}
     .checkout:disabled{cursor:wait;opacity:.75}
     .checkout .spinner{display:none;position:absolute;right:18px;top:50%;width:18px;height:18px;margin-top:-9px;border:2px solid rgba(36,18,6,.3);border-top-color:#241206;border-radius:50%;animation:spin .7s linear infinite}
     .checkout.loading .spinner{display:block}
-    @media(prefers-reduced-motion: reduce){.checkout .spinner{animation:none;border-top-color:rgba(36,18,6,.3)}.checkout{transition:none}}
     @keyframes spin{to{transform:rotate(360deg)}}
-    .notice{min-height:24px;color:var(--bad);font-weight:700;margin:13px 0 0}
-    .guarantee{margin:14px 0 0;padding:13px 15px;border-radius:var(--rad);background:color-mix(in srgb,var(--core) 9%,transparent);border:1px solid color-mix(in srgb,var(--core) 28%,transparent);color:var(--dim);font-size:14px;line-height:1.5}
+    .secure{color:var(--dim);font-size:14px;text-align:center;margin:10px 0 0}
+    .notice{min-height:24px;color:var(--bad);font-weight:700;margin:10px 0 0}
+    .guarantee{margin:8px 0 0;padding:13px 15px;border-radius:var(--rad);background:color-mix(in srgb,var(--core) 9%,transparent);border:1px solid color-mix(in srgb,var(--core) 28%,transparent);color:var(--dim);font-size:14px;line-height:1.5}
     .guarantee b{color:var(--core);font-weight:900}
-    .price{font-size:clamp(38px,6vw,58px);font-weight:900;letter-spacing:-.05em;color:var(--core);margin:16px 0 2px}
-    .unit{color:var(--dim);font-weight:800;margin:0}
-    .side-list{list-style:none;padding:0;margin:25px 0 0}
-    .side-list li{border-top:1px solid var(--line);padding:15px 0;color:var(--dim)}
-    .side-list b{color:var(--ink);display:block;margin-bottom:3px}
-    .fact{color:var(--dim);font-size:15px;margin-top:28px}
-    .fact b{color:var(--ink)}
+    .details h2{font-size:19px;margin:0 0 4px}
+    .side-list{list-style:none;padding:0;margin:0 0 18px}
+    .side-list li{border-top:1px solid var(--line);padding:13px 0;color:var(--dim)}
+    .side-list li:first-child{border-top:0}
+    .side-list b{color:var(--ink);display:block;margin-bottom:2px}
+    .steps{list-style:none;counter-reset:s;padding:0;margin:0 0 18px}
+    .steps li{counter-increment:s;display:flex;gap:12px;align-items:baseline;padding:8px 0;color:var(--ink);font-weight:700}
+    .steps li::before{content:counter(s);flex:none;width:24px;height:24px;border-radius:50%;display:inline-grid;place-items:center;background:color-mix(in srgb,var(--core) 18%,transparent);color:var(--core);font-size:13px;font-weight:900}
+    .fact{color:var(--dim);font-size:15px;margin:0 0 10px}
     .fact a{color:var(--core);text-decoration:underline;text-decoration-color:color-mix(in srgb,var(--core) 45%,transparent);text-underline-offset:3px}
-    footer{border-top:1px solid var(--line);color:var(--dim);font-size:14px;padding:26px 0;text-align:center}
-    @media(max-width:720px){.grid{grid-template-columns:1fr}.card{padding:24px}.top{padding-top:18px}main{padding-top:25px}}
+    footer{border-top:1px solid var(--line);color:var(--dim);font-size:14px;padding:22px 0;text-align:center}
+    @media(min-width:860px){
+      .wrap{padding-inline:20px}
+      .top{padding-block:25px}
+      main{padding-block:5vh 76px}
+      .hero{margin-bottom:28px}
+      .facts{grid-template-columns:repeat(3,1fr);max-width:820px}
+      .facts .wide{grid-column:auto}
+      .layout{grid-template-columns:1.1fr .9fr;gap:24px}
+      .card{padding:30px}
+    }
+    @media(prefers-reduced-motion: reduce){.hero,.reel i,.card{animation:none!important;opacity:1!important;transform:none!important}.checkout .spinner{animation:none;border-top-color:rgba(36,18,6,.3)}.checkout{transition:none}}
   </style>
 <!-- NOMOI funnel telemetry (privacy-safe): no cookies, no PII, sessionStorage UUID only; events land in surface.ux_signals via ingest.atlas.nomoi.ai. Probes send X-NOMOI-Test: 1 or ?nomoi_test=1. -->
 <script>
@@ -94,51 +114,64 @@
 <body>
   <header class="wrap top">
     <a class="brand" href="/" aria-label="GLOWHUM home">GLOW<b>HUM</b></a>
-    <nav><a class="status-link" href="/drop">Drop a report</a> &nbsp; <a class="status-link" href="/order">Order status</a></nav>
+    <nav><a class="status-link" href="/drop">Drop a report</a><a class="status-link" href="/order">Order status</a></nav>
   </header>
   <main class="wrap">
     <section class="hero">
-      <div class="eyebrow">One finished episode</div>
-      <h1>Start with a <span>topic</span> or report.</h1>
-      <p>We turn your brief into one long form episode and three vertical cuts for your channels.</p>
+      <div class="eyebrow">Done for you</div>
+      <h1>Send a topic. Get a <span>finished episode</span>.</h1>
+      <p>We make one long form episode and three vertical cuts from your topic or report, then email you the link to watch it.</p>
       <div class="reel" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     </section>
-    <ol class="steps" aria-label="How Glowhum works">
-      <li><b>Step 1</b><span>Send your topic or report</span></li>
-      <li><b>Step 2</b><span>Pay once, no subscription</span></li>
-      <li><b>Step 3</b><span>Get your episode and three cuts</span></li>
-    </ol>
-    <section class="handoff" aria-label="Done for you" style="max-width:820px;margin:8px auto 0;padding:0 20px;text-align:center">
-      <h2 style="font-size:1.15rem;margin:0 0 6px">Rather just message us?</h2>
-      <p class="muted" style="margin:0 auto 14px;max-width:520px">DM a product link or a one line brief on WhatsApp. Our team makes the reels and sends them back in the same chat.</p>
-      <a class="checkout" data-nomoi-cta="concierge_whatsapp" href="https://wa.me/18312937534?text=Hi%20Glowhum%2C%20I%27d%20like%20reels%20made%20for%3A%20" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;justify-content:center;width:auto;padding:12px 22px;text-decoration:none">Message us on WhatsApp</a>
+    <ul class="facts" aria-label="Price and delivery">
+      <li><b>Price</b><span class="price"><span data-price>199</span> AED</span></li>
+      <li><b>Billing</b><span>One payment. No subscription.</span></li>
+      <li class="wide"><b>Delivery time</b><span data-turnaround>We have not set a fixed delivery time yet. Your order page shows each step as it happens, and we email you when it is ready.</span></li>
+    </ul>
+    <section class="sample" id="sample" aria-label="Sample episode" data-sample-url="" hidden>
+      <h2>Watch a sample</h2>
+      <div class="frame"></div>
     </section>
-    <section class="grid" aria-label="Order one episode">
+    <section class="layout" aria-label="Order one episode">
       <form class="card" id="orderForm">
-        <h2>Your order</h2>
-        <p class="muted">Add your details, then pay securely with Stripe.</p>
+        <h2>Order your episode</h2>
+        <p class="muted">Your email and a topic or report link. Then pay with Stripe.</p>
         <label class="field" for="email"><span>Email</span><input id="email" name="email" type="email" autocomplete="email" required placeholder="you@example.com"></label>
-        <label class="field" for="topic"><span>Topic <em class="hint">or use a report URL below</em></span><textarea id="topic" name="topic" rows="4" maxlength="500" placeholder="What should the episode cover?"></textarea></label>
+        <label class="field" for="topic"><span>Topic <em class="hint">or use a report URL below</em></span><textarea id="topic" name="topic" rows="3" maxlength="500" placeholder="What should the episode cover?"></textarea></label>
         <div class="or">OR</div>
         <label class="field" for="reportUrl"><span>Report URL <em class="hint">or add a topic above</em></span><input id="reportUrl" name="report_url" type="url" inputmode="url" maxlength="500" placeholder="https://example.com/report"></label>
         <button class="checkout" id="checkoutButton" type="submit" data-nomoi-cta="order_checkout"><span class="btn-label">Continue to payment</span><span class="spinner" aria-hidden="true"></span></button>
+        <p class="secure">Secure payment on Stripe. <span data-price>199</span> AED, charged once.</p>
         <p class="notice" id="notice" role="alert"></p>
-        <p class="guarantee"><b>Founding order.</b> We produce your episode and three cuts and send them to your email. If we cannot deliver, you get a full refund.</p>
+        <p class="guarantee"><b>Delivered or refunded.</b> If we cannot deliver your episode, you get a full refund.</p>
       </form>
-      <aside class="card">
-        <div class="eyebrow">Clear price</div>
-        <div class="price"><span data-price>199</span> AED</div>
-        <p class="unit">One episode</p>
+      <aside class="details">
+        <h2>What you get</h2>
         <ul class="side-list">
           <li><b>One long form episode</b>Script, voice, visuals and captions.</li>
           <li><b>Three vertical cuts</b>Ready for Shorts and TikTok.</li>
-          <li><b>Delivered or refunded</b>Track your order from paid to delivered, backed by a full refund.</li>
+          <li><b>An unlisted YouTube link</b>Only people with the link can watch it. We email it to you.</li>
         </ul>
-        <p class="fact">One episode is <span data-price>199</span> AED. Have a file to share? <a href="/drop">Save your report and get a receipt.</a></p>
+        <h2>How it works</h2>
+        <ol class="steps">
+          <li>Send your topic or report link</li>
+          <li>Pay once with Stripe</li>
+          <li>Track your order, then watch your episode</li>
+        </ol>
+        <p class="fact">Have a file instead of a link? <a href="/drop">Save your report and get a receipt.</a></p>
+        <p class="fact">Questions first? <a data-nomoi-cta="concierge_whatsapp" href="https://wa.me/18312937534?text=Hi%20Glowhum%2C%20I%27d%20like%20reels%20made%20for%3A%20" target="_blank" rel="noopener">Message us on WhatsApp.</a></p>
       </aside>
     </section>
   </main>
-  <footer><div class="wrap">Glowhum by GLOWHUM</div></footer>
+  <footer><div class="wrap">Glowhum by NOMOI</div></footer>
+  <script>
+    (function(){
+      // Sample slot: stays hidden until data-sample-url holds a real YouTube link. Never add a placeholder.
+      var sample=document.getElementById('sample');
+      var match=/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/.exec(sample.getAttribute('data-sample-url')||'');
+      if(match){var frame=document.createElement('iframe');frame.src='https://www.youtube-nocookie.com/embed/'+match[1];frame.title='Glowhum sample episode';frame.loading='lazy';frame.allow='encrypted-media; picture-in-picture; fullscreen';sample.querySelector('.frame').appendChild(frame);sample.hidden=false;}
+    })();
+  </script>
   <script>
     (function(){
       function setLabel(button,text){var label=button.querySelector('.btn-label');if(label)label.textContent=text;else button.textContent=text;}
@@ -164,4 +197,3 @@
   </script>
 </body>
 </html>
-</content>
