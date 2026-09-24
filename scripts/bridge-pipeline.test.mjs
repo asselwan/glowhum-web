@@ -238,7 +238,12 @@ test("a bridge write failure is alerted, not swallowed silently, and does not cr
       STRIPE_API_BASE_URL: `http://127.0.0.1:${fakeStripe.port}`,
       PUBLIC_BASE_URL: "https://glowhum.test",
       GLOWHUM_EPISODE_PRICE_AED: "199",
-      // No MCP_INTERNAL_SHARED_SECRET: alertDain must log and return false, never throw.
+      // Explicitly forced empty (not just "omitted"): the host actually running this suite may
+      // have a real MCP_INTERNAL_SHARED_SECRET in its own environment (glowhum-web's production
+      // container does, deliberately, so alertDain can really fire) -- {...process.env} above
+      // would otherwise inherit it and this test would attempt a live network call instead of
+      // exercising the "no secret" path deterministically.
+      MCP_INTERNAL_SHARED_SECRET: "",
     },
     stdio: ["ignore", "pipe", "pipe"],
   });
