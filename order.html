@@ -39,10 +39,9 @@
     .tracker li.closed .label{color:var(--bad)}
     @keyframes pulse{0%,100%{box-shadow:0 0 0 2px var(--core)}50%{box-shadow:0 0 0 7px color-mix(in srgb,var(--core) 30%,transparent)}}
     @media (prefers-reduced-motion: reduce){.tracker li.current .dot{animation:none}}
-    .rendering-extra{margin:16px 0 0;padding-left:14px;border-left:2px solid var(--core)}
-    .elapsed{margin:0;color:var(--core);font-size:14px;font-weight:800}
-    .rendering-contact{display:inline-block;margin-top:5px;color:var(--dim);font-size:13px;text-decoration:underline;text-underline-offset:3px}
-    .rendering-contact:hover{color:var(--core)}
+    .rendering-extra{margin:14px 0 0;color:var(--dim);font-size:13px}
+    .rendering-extra a{color:var(--dim);text-decoration:underline;text-underline-offset:3px}
+    .rendering-extra a:hover{color:var(--core)}
 
     .promise{margin:24px 0 4px;padding:18px 18px 16px;border-radius:var(--rad);background:color-mix(in srgb,var(--core) 8%,transparent);border:1px solid color-mix(in srgb,var(--core) 26%,transparent)}
     .promise-frames{display:flex;gap:6px;margin-bottom:12px}
@@ -82,10 +81,7 @@
       <li id="stepRendering"><div class="dot-row"><span class="bar"></span><span class="dot"></span><span class="bar"></span></div><div class="label">In production</div></li>
       <li id="stepPublished"><div class="dot-row"><span class="bar"></span><span class="dot"></span><span class="bar"></span></div><div class="label">Delivered</div></li>
     </ol>
-    <div class="rendering-extra" id="renderingExtra" hidden>
-      <p class="elapsed" id="elapsed" hidden></p>
-      <a class="rendering-contact" href="https://wa.me/18312937534?text=Hi%20Glowhum%2C%20I%27d%20like%20reels%20made%20for%3A%20" target="_blank" rel="noopener">Message us on WhatsApp</a>
-    </div>
+    <p class="rendering-extra" id="renderingExtra" hidden><span id="orderedAt"></span> &middot; Questions? <a id="renderingContact" href="https://wa.me/18312937534?text=Hi%20Glowhum%2C%20I%27d%20like%20reels%20made%20for%3A%20" target="_blank" rel="noopener">WhatsApp us</a></p>
 
     <section class="promise" id="promise" hidden>
       <div class="promise-frames" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
@@ -109,20 +105,16 @@
       var order={paid:0,rendering:1,published:2};
       var titles={paid:'Payment received',rendering:'Your episode is in production',published:'Your episode is delivered',refunded:'Payment refunded'};
       var messages={paid:'You are a founding order. We produce your episode and three cuts and send them to your email. If we cannot deliver, you get a full refund.',rendering:'Your episode is in production now. We will email it to you when it is ready.',published:'Your finished episode and three cuts are ready.',refunded:'This order was refunded. Access for this order has ended.'};
-      var renderingExtra=document.getElementById('renderingExtra'),elapsed=document.getElementById('elapsed'),elapsedTimer;
-      function hideRenderingExtra(){renderingExtra.hidden=true;clearInterval(elapsedTimer);elapsedTimer=null;}
+      var renderingExtra=document.getElementById('renderingExtra'),orderedAt=document.getElementById('orderedAt'),renderingContact=document.getElementById('renderingContact');
+      function hideRenderingExtra(){renderingExtra.hidden=true;}
       function showError(text){hideRenderingExtra();tracker.hidden=true;state.textContent='We could not find that order';message.textContent=text;message.className='message error';}
-      function showRenderingExtra(createdAt){
-        hideRenderingExtra();renderingExtra.hidden=false;
+      function showRenderingExtra(createdAt,orderId){
         var placedAt=Date.parse(createdAt);
-        elapsed.hidden=!Number.isFinite(placedAt);
-        if(elapsed.hidden)return;
-        function updateElapsed(){
-          var seconds=Math.max(0,Math.floor((Date.now()-placedAt)/1000));
-          var hours=Math.floor(seconds/3600),minutes=Math.floor(seconds%3600/60),remaining=seconds%60;
-          elapsed.textContent='Time since order: '+(hours?hours+'h ':'')+minutes+'m '+remaining+'s';
-        }
-        updateElapsed();elapsedTimer=setInterval(updateElapsed,1000);
+        if(!Number.isFinite(placedAt)){hideRenderingExtra();return;}
+        renderingExtra.hidden=false;
+        orderedAt.textContent='Ordered '+new Date(placedAt).toLocaleString(undefined,{hour:'2-digit',minute:'2-digit'});
+        var text=orderId?'Hi Glowhum, checking on my order '+orderId:'Hi Glowhum, checking on my order';
+        renderingContact.href='https://wa.me/18312937534?text='+encodeURIComponent(text);
       }
       function safeVideoUrl(value){try{var url=new URL(value);return url.protocol==='https:'?url.href:null;}catch(error){return null;}}
       function paintTracker(status){
@@ -141,7 +133,7 @@
           var order=result.body,status=titles[order.status]?order.status:'paid';
           state.textContent=titles[status];message.textContent=messages[status];message.className='message';details.hidden=false;document.getElementById('orderId').textContent=order.order_id;
           paintTracker(status);
-          if(status==='rendering')showRenderingExtra(order.created_at);else hideRenderingExtra();
+          if(status==='rendering')showRenderingExtra(order.created_at,order.order_id);else hideRenderingExtra();
           var promise=document.getElementById('promise'),promiseText=document.getElementById('promiseText');
           if(status==='refunded'){promise.hidden=true;}
           else{promise.hidden=false;if(status==='published'){promiseText.innerHTML='<b>Delivered.</b> Your episode and three cuts are ready to watch below.';}}
