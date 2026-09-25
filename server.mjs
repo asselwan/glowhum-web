@@ -367,7 +367,7 @@ async function bridgeToDeliveryPipeline(job) {
     status: "queued",
     requested_at: job.created_at,
     source_sha256: sha256,
-    destination: { service: "YouTube", channel_id: process.env.GLOWHUM_YOUTUBE_CHANNEL_ID || null, visibility: "private" },
+    destination: { service: "YouTube", channel_id: process.env.GLOWHUM_YOUTUBE_CHANNEL_ID || null, visibility: "unlisted" },
   };
   const statePath = path.join(dir, "delivery.json");
   try {

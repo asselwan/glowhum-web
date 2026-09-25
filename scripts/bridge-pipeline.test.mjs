@@ -147,6 +147,9 @@ test("a paid Stripe order is bridged into the delivery pipeline, driven queue to
     const bridgedState = JSON.parse(await fs.readFile(path.join(jobDir, "drops", deliveryId, "delivery.json"), "utf8"));
     assert.equal(bridgedState.status, "queued");
     assert.equal(bridgedState.destination.channel_id, "UCJV-l1aT50bqblmpQAc1Z5Q");
+    // A paid order must resolve to unlisted: YouTube "private" is unviewable by link (d8f8c20),
+    // so the customer's emailed video link would fail.
+    assert.equal(bridgedState.destination.visibility, "unlisted");
 
     // order.html's own endpoint must show "rendering" now, not stuck on "paid" forever.
     const statusWhileQueued = await fetch(`http://127.0.0.1:${port}/api/order/cs_test_bridge_order_1`);
@@ -182,12 +185,13 @@ test("a paid Stripe order is bridged into the delivery pipeline, driven queue to
     });
     const job2 = await claim2.json();
     assert.equal(job2.phase, "publish");
+    assert.equal(job2.destination.visibility, "unlisted");
 
     const fakeVideoId = "bridgeTest1"; // 11 chars, never a real YouTube upload (see delivery.mjs 'complete')
     const complete = await fetch(`http://127.0.0.1:${port}/api/worker/${deliveryId}/complete`, {
       method: "POST",
       headers: { authorization: `Bearer ${workerToken}`, "x-worker-claim": job2.claim, "content-type": "application/json" },
-      body: JSON.stringify({ video_id: fakeVideoId, channel_id: job2.destination.channel_id, visibility: "unlisted", preview_sha256: readyState.preview.sha256, verified: true }),
+      body: JSON.stringify({ video_id: fakeVideoId, channel_id: job2.destination.channel_id, visibility: job2.destination.visibility, preview_sha256: readyState.preview.sha256, verified: true }),
     });
     assert.equal(complete.status, 200);
     assert.equal((await complete.json()).status, "published");
