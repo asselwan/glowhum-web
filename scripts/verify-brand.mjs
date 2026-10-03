@@ -80,9 +80,14 @@ export async function auditBrand(record) {
 
   const server = await readText("server.mjs");
   for (const page of record.pages || []) {
-    const routeMarker = `pathname === "${page.route}"`;
-    const fileMarker = `file = "${page.file}"`;
-    addCheck(result, `server maps ${page.route}`, server.includes(routeMarker) && server.includes(fileMarker), page.file);
+    if (page.handler_file) {
+      const handler = await readText(page.handler_file);
+      addCheck(result, `server maps ${page.route}`, server.includes('webBookRoutes(') && handler.includes(page.file), page.file);
+    } else {
+      const routeMarker = `pathname === "${page.route}"`;
+      const fileMarker = `file = "${page.file}"`;
+      addCheck(result, `server maps ${page.route}`, server.includes(routeMarker) && server.includes(fileMarker), page.file);
+    }
   }
 
   for (const redirect of record.redirects || []) {

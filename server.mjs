@@ -9,6 +9,8 @@ import { topicPreviewRoutes } from "./topic-preview.mjs";
 import { founderSummaryRoutes } from "./founder-summary.mjs";
 import { creativeJobRoutes } from "./creative-jobs.mjs";
 import { sendMail, orderPaidEmail } from "./mail.mjs";
+import { webBookRoutes, webBookOrderView } from "./webbook.mjs";
+import { publish as publishWebBook } from "./scripts/run-webbook.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -23,6 +25,8 @@ const EPISODE_PRICE_AED = positiveInteger(process.env.GLOWHUM_EPISODE_PRICE_AED,
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
 const STRIPE_PRICE_ID = process.env.STRIPE_PRICE_ID || "";
+const WEB_BOOK_PRICE_ID = process.env.STRIPE_WEB_BOOK_PRICE_ID || "";
+const WEB_BOOK_PRICE_AED = positiveInteger(process.env.GLOWHUM_WEB_BOOK_PRICE_AED, 49);
 const STRIPE_ALLOW_LIVE = process.env.STRIPE_ALLOW_LIVE === "true";
 const STRIPE_API_BASE_URL = process.env.NODE_ENV === "test"
   ? process.env.STRIPE_API_BASE_URL || "https://api.stripe.com/v1"
@@ -35,6 +39,12 @@ const RATE_LIMIT_MAX = 20;
 const WEBHOOK_MAX_BYTES = 1024 * 1024;
 const WEBHOOK_TOLERANCE_SECONDS = 5 * 60;
 const ORDER_PRODUCT_MARKER = "glowhum_one_episode_v1";
+const WEB_BOOK_PRODUCT_MARKER = "glowhum_web_book_v1";
+function productFor(kind) {
+  return kind === "web_book"
+    ? { marker: WEB_BOOK_PRODUCT_MARKER, priceId: WEB_BOOK_PRICE_ID, amount: WEB_BOOK_PRICE_AED }
+    : { marker: ORDER_PRODUCT_MARKER, priceId: STRIPE_PRICE_ID, amount: EPISODE_PRICE_AED };
+}
 const ORDER_STATUSES = new Set(["paid", "rendering", "published", "refunded"]);
 
 const mimeByExt = {
@@ -117,9 +127,43 @@ function stripeKeyMode() {
   return "unknown";
 }
 
-function stripeIsReady() {
+function stripeIsReady(kind = "episode") {
   const mode = stripeKeyMode();
-  return validPriceId(STRIPE_PRICE_ID) && (mode === "test" || (mode === "live" && STRIPE_ALLOW_LIVE));
+  return (kind !== "web_book" || process.env.GLOWHUM_WEB_BOOK_WORKER_ENABLED === "true" && process.env.GLOWHUM_WEB_BOOK_PRICE_APPROVED === "true" && Number.isInteger(Number(process.env.GLOWHUM_WEB_BOOK_PRICE_AED))) && validPriceId(productFor(kind).priceId) && (mode === "test" || (mode === "live" && STRIPE_ALLOW_LIVE));
+}
+
+const webBookInFlight = new Set();
+async function startWebBook(orderId, email = null) {
+  if (webBookInFlight.has(orderId)) return;
+  webBookInFlight.add(orderId);
+  try {
+    const state = await publishWebBook(orderId);
+    if (email && state.status === "published") {
+      const link = `${configuredPublicBaseUrl()}/order?order_id=${encodeURIComponent(orderId)}`;
+      const result = await sendMail({ to: email, subject: "Your Glowhum Web Book is ready", text: `Your Web Book is ready. Open it from your order page: ${link}` });
+      if (!result.sent) console.error(JSON.stringify({ component: "webbook", event: "ready_email_failed", order_id: orderId, reason: result.reason }));
+    }
+  } catch (error) {
+    console.error(JSON.stringify({ component: "webbook", event: "production_failed", order_id: orderId, error: error.message }));
+    await alertDain("glowhum: Web Book production failed", `order_id=${orderId} error=${error.message}`, "critical");
+  } finally { webBookInFlight.delete(orderId); }
+}
+
+async function resumeWebBooks() {
+  if (process.env.GLOWHUM_WEB_BOOK_WORKER_ENABLED !== "true") return;
+  let names;
+  try { names = await fs.readdir(path.join(GLOWHUM_DROPS_DIR, "drops")); } catch { return; }
+  for (const name of names.filter(validOrderId)) {
+    try {
+      const receipt = JSON.parse(await fs.readFile(receiptPath(name), "utf8"));
+      if (receipt.product !== WEB_BOOK_PRODUCT_MARKER || receipt.status !== "paid") continue;
+      const view = await webBookOrderView(GLOWHUM_DROPS_DIR, name);
+      if (view?.status === "published") continue;
+      const state = JSON.parse(await fs.readFile(path.join(orderDirectory(name), "webbook-state.json"), "utf8").catch(() => "{}"));
+      if (state.status === "failed") continue;
+      void startWebBook(name, receipt.email);
+    } catch { /* Another order schema or an incomplete webhook write. */ }
+  }
 }
 
 function expectedStripeLivemode() {
@@ -133,6 +177,8 @@ function safeText(value, maxLength) {
 }
 
 function validateOrderInput(input) {
+  const kind = input?.product === "web_book" ? "web_book" : input?.product === undefined || input?.product === "episode" ? "episode" : null;
+  if (!kind) return { error: "Choose a valid product." };
   if (typeof input?.email !== "string" || input.email.trim().length > 254) return { error: "Enter a valid email address." };
   if (typeof input?.topic === "string" && input.topic.trim().length > 500) return { error: "Keep the topic under 500 characters." };
   if (typeof input?.report_url === "string" && input.report_url.trim().length > 500) return { error: "Keep the report URL under 500 characters." };
@@ -141,6 +187,7 @@ function validateOrderInput(input) {
   const reportUrl = safeText(input.report_url, 500);
   if (!validateEmail(email)) return { error: "Enter a valid email address." };
   if (!topic && !reportUrl) return { error: "Add a topic or a report URL." };
+  if (kind === "web_book" && !reportUrl) return { error: "Add a public HTTPS PDF URL for the Web Book." };
   if (reportUrl) {
     try {
       const url = new URL(reportUrl);
@@ -149,7 +196,7 @@ function validateOrderInput(input) {
       return { error: "Enter a public HTTPS report URL." };
     }
   }
-  return { email, topic: topic || null, reportUrl: reportUrl || null };
+  return { email, topic: topic || null, reportUrl: reportUrl || null, kind };
 }
 
 function isPrivateLiteralHost(hostname) {
@@ -183,21 +230,22 @@ function configuredPublicBaseUrl() {
 }
 
 async function createCheckoutSession(order, baseUrl) {
+  const product = productFor(order.kind);
   const params = new URLSearchParams({
     mode: "payment",
     customer_email: order.email,
-    client_reference_id: ORDER_PRODUCT_MARKER,
+    client_reference_id: product.marker,
     success_url: `${baseUrl}/order?order_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${baseUrl}/?checkout=cancelled`,
     "line_items[0][quantity]": "1",
-    "line_items[0][price]": STRIPE_PRICE_ID,
+    "line_items[0][price]": product.priceId,
     "metadata[email]": order.email,
-    "metadata[glowhum_product]": ORDER_PRODUCT_MARKER,
-    "metadata[glowhum_price]": STRIPE_PRICE_ID,
+    "metadata[glowhum_product]": product.marker,
+    "metadata[glowhum_price]": product.priceId,
     "metadata[is_test]": String(stripeKeyMode() === "test"),
     "metadata[topic]": order.topic || "",
     "metadata[report_url]": order.reportUrl || "",
-    "payment_intent_data[metadata][glowhum_product]": ORDER_PRODUCT_MARKER,
+    "payment_intent_data[metadata][glowhum_product]": product.marker,
     "payment_intent_data[metadata][is_test]": String(stripeKeyMode() === "test"),
   });
   const response = await fetch(`${STRIPE_API_BASE_URL}/checkout/sessions`, {
@@ -243,6 +291,8 @@ function verifyStripeSignature(rawBody, header) {
 
 function jobFromCheckoutSession(session, event) {
   const metadata = session.metadata || {};
+  const kind = metadata.glowhum_product === WEB_BOOK_PRODUCT_MARKER ? "web_book" : "episode";
+  const product = productFor(kind);
   const createdSeconds = Number(session.created);
   const createdAt = Number.isFinite(createdSeconds)
     ? new Date(createdSeconds * 1000).toISOString()
@@ -253,10 +303,10 @@ function jobFromCheckoutSession(session, event) {
     email: safeText(session.customer_details?.email, 254),
     topic: safeText(metadata.topic, 500) || null,
     report_url: safeText(metadata.report_url, 500) || null,
-    price_aed: EPISODE_PRICE_AED,
-    stripe_price_id: STRIPE_PRICE_ID,
+    price_aed: product.amount,
+    stripe_price_id: product.priceId,
     payment_intent_id: session.payment_intent,
-    product: ORDER_PRODUCT_MARKER,
+    product: product.marker,
     is_test: !session.livemode,
     created_at: createdAt,
     status: "paid",
@@ -701,7 +751,7 @@ async function handleCheckout(req, res) {
     return sendJson(res, 400, { error: "Invalid order details." });
   }
   if (input.error) return sendJson(res, 400, { error: input.error });
-  if (!stripeIsReady()) return sendJson(res, 503, { error: "Checkout is not ready yet." });
+  if (!stripeIsReady(input.kind)) return sendJson(res, 503, { error: "Checkout is not ready yet." });
   const baseUrl = configuredPublicBaseUrl();
   if (!baseUrl) return sendJson(res, 503, { error: "Checkout is not ready yet." });
   try {
@@ -743,7 +793,7 @@ async function handleStripeWebhook(req, res) {
     // is known before we decide the response -- unlike the email below, silently losing this
     // means the order can NEVER be fulfilled through the pipeline. Only on first write; a
     // Stripe retry of an already-bridged order must not re-alert.
-    if (result.created) {
+    if (result.created && result.job.product === ORDER_PRODUCT_MARKER) {
       try {
         await bridgeToDeliveryPipeline(result.job);
       } catch (bridgeError) {
@@ -761,11 +811,14 @@ async function handleStripeWebhook(req, res) {
       }
     }
     sendJson(res, 200, { received: true, created: result.created, order_id: result.job.order_id });
+    if (result.created && result.job.product === WEB_BOOK_PRODUCT_MARKER) void startWebBook(result.job.order_id, result.job.email);
     // Fire-and-forget: never let a slow/failed email turn a successful order write into a
     // webhook error (Stripe would retry an already-stored order). Only on first write, not
     // on Stripe's automatic retry of the same event.
     if (result.created && result.job.email) {
-      const { subject, text, html } = orderPaidEmail({ orderId: result.job.order_id, topic: result.job.topic });
+      const { subject, text, html } = result.job.product === WEB_BOOK_PRODUCT_MARKER
+        ? { subject: "Glowhum Web Book order received", text: `We received your Web Book order. Track it at ${configuredPublicBaseUrl()}/order?order_id=${encodeURIComponent(result.job.order_id)}. If we cannot deliver, you get a full refund.` }
+        : orderPaidEmail({ orderId: result.job.order_id, topic: result.job.topic });
       sendMail({ to: result.job.email, subject, text, html }).then((outcome) => {
         if (!outcome.sent) {
           console.error(JSON.stringify({ component: "mail", event: "order_paid_email_failed", order_id: result.job.order_id, outcome }));
@@ -816,16 +869,19 @@ function isValidPaidCheckoutSession(session) {
   if (session.mode !== "payment" || session.payment_status !== "paid") return false;
   if (session.livemode !== expectedStripeLivemode()) return false;
   if (String(session.currency || "").toLowerCase() !== "aed") return false;
-  if (session.amount_total !== EPISODE_PRICE_AED * 100) return false;
+  const kind = session.client_reference_id === WEB_BOOK_PRODUCT_MARKER ? "web_book" : "episode";
+  const product = productFor(kind);
+  if (session.amount_total !== product.amount * 100) return false;
   if (!validPaymentIntentId(session.payment_intent)) return false;
-  if (session.client_reference_id !== ORDER_PRODUCT_MARKER) return false;
-  if (session.metadata?.glowhum_product !== ORDER_PRODUCT_MARKER) return false;
-  if (session.metadata?.glowhum_price !== STRIPE_PRICE_ID) return false;
+  if (session.client_reference_id !== product.marker) return false;
+  if (session.metadata?.glowhum_product !== product.marker) return false;
+  if (session.metadata?.glowhum_price !== product.priceId || !validPriceId(product.priceId)) return false;
   if (session.metadata?.is_test !== String(!session.livemode)) return false;
   const order = validateOrderInput({
     email: session.customer_details?.email,
     topic: session.metadata?.topic,
     report_url: session.metadata?.report_url,
+    product: kind,
   });
   return !order.error;
 }
@@ -870,7 +926,10 @@ async function handleOrderStatus(res, id) {
     let status = job.status;
     let videoUrl = job.status === "published" ? job.video_url : null;
     let publishedAt = job.status === "published" ? job.published_at : null;
-    if (job.status === "paid") {
+    if (job.product === WEB_BOOK_PRODUCT_MARKER && job.status === "paid") {
+      const book = await webBookOrderView(GLOWHUM_DROPS_DIR, id);
+      if (book) { status = book.status; videoUrl = book.book_url; publishedAt = book.published_at; }
+    } else if (job.status === "paid") {
       const bridged = await bridgedOrderView(id);
       if (bridged) { status = bridged.status; videoUrl = bridged.video_url; publishedAt = bridged.published_at; }
     }
@@ -882,6 +941,7 @@ async function handleOrderStatus(res, id) {
       status,
       created_at: job.created_at,
       video_url: status === "published" ? videoUrl : null,
+      ...(job.product === WEB_BOOK_PRODUCT_MARKER ? { book_url: status === "published" ? videoUrl : null, product: "web_book" } : {}),
       published_at: status === "published" ? publishedAt : null,
     });
   } catch {
@@ -892,6 +952,7 @@ async function handleOrderStatus(res, id) {
 const server = http.createServer(async (req, res) => {
   try {
     const pathname = new URL(req.url, "http://localhost").pathname;
+    if (await webBookRoutes(req, res, pathname, { root: GLOWHUM_DROPS_DIR, baseUrl: configuredPublicBaseUrl() })) return;
     if (await creativeJobRoutes(req, res, pathname, GLOWHUM_DROPS_DIR)) return;
     if (await topicPreviewRoutes(req, res, pathname, GLOWHUM_DROPS_DIR)) return;
     if (await deliveryRoutes(req, res, pathname, DROP_ROOT)) return;
@@ -900,6 +961,7 @@ const server = http.createServer(async (req, res) => {
       if (pathname === "/api/order-config" && req.method === "GET") {
         return sendJson(res, 200, { price_aed: EPISODE_PRICE_AED, checkout_ready: stripeIsReady() });
       }
+      if (pathname === "/api/web-book-config" && req.method === "GET") return sendJson(res, 200, { price_aed: WEB_BOOK_PRICE_AED, checkout_ready: stripeIsReady("web_book") });
       if (pathname === "/api/checkout" && req.method === "POST") return handleCheckout(req, res);
       if (pathname === "/api/stripe/webhook" && req.method === "POST") return handleStripeWebhook(req, res);
       if (pathname === "/api/drop" && req.method === "POST") return handleDrop(req, res, req.socket.remoteAddress || "unknown");
@@ -920,6 +982,8 @@ const server = http.createServer(async (req, res) => {
 if (process.argv[1] && path.resolve(process.argv[1]) === __filename) {
   server.listen(PORT, HOST, () => {
     if (process.env.NODE_ENV !== "test") console.log(`GLOWHUM server listening on ${HOST}:${PORT}`);
+    void resumeWebBooks();
+    setInterval(() => { void resumeWebBooks(); }, 60_000).unref();
   });
 }
 
