@@ -33,3 +33,7 @@ test('Web Book checkout chooses its own Stripe Price and requires a PDF URL',asy
   const demo=await fetch(`http://127.0.0.1:${port}/book/00000000000000000000000000000000`);assert.equal(demo.status,200);assert.match(await demo.text(),/Interactive Web Book/);
  }finally{child.kill();await new Promise(resolve=>child.once('exit',resolve));await new Promise(resolve=>fake.close(resolve))}
 });
+
+test('clinical review gate distinguishes a clinical title from literary medicine mentions',async()=>{
+ const alice=await fs.readFile(path.join(repo,'demo/source.pdf'));const frank=await fs.readFile(path.join(repo,'trials/frankenstein.pdf'));assert.equal((await buildBook(alice,'Clinical protocol')).medical,true);assert.equal((await buildBook(frank,'Frankenstein')).medical,false);
+});
