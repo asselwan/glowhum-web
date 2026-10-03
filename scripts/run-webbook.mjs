@@ -28,7 +28,7 @@ function excerpt(text){
 }
 function narrationText(text){
  // PDF citations stay visible in the reader; speech starts with the excerpt itself.
- const withoutCitation=text.replace(/^.*?\bexcerpt page \d+\s+/i,'').replace(/https?:\/\/[^\s·]+/gi,'');
+ const withoutCitation=text.replace(/^.*?·\s*public domain source excerpt[^·]*·\s*https?:\/\/[^\s·]+\s*·\s*excerpt page \d+\s*/i,'').replace(/https?:\/\/[^\s·]+/gi,'');
  return pronunciation(clean(withoutCitation));
 }
 export function pronunciation(text){return text.replace(/(?<![\w/:.])(\d+(?:\.\d+)?|[A-Za-z])\s*\/\s*(\d+(?:\.\d+)?|[A-Za-z])(?![\w/])/g,'$1 or $2').replace(/%/g,' percent').replace(/≥/g,' greater than or equal to ').replace(/≤/g,' less than or equal to ').replace(/α/g,' alpha ').replace(/β/g,' beta ').replace(/μg/g,' micrograms').replace(/\bmg\b/g,'milligrams').replace(/\bmmHg\b/g,'millimeters of mercury');}
