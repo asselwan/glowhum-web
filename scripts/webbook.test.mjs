@@ -14,6 +14,7 @@ test('demo Web Book keeps every quiz answer tied to its PDF passage',async()=>{
   assert.equal(chapter.quiz.source_page,chapter.passage.page);
   assert.equal(chapter.quiz.source_text,chapter.passage.text);
   assert.equal(chapter.quiz.options[chapter.quiz.answer],chapter.passage.text.slice(0,125));
+  for(let i=0;i<chapter.quiz.options.length;i++)assert.equal(chapter.quiz.options[i],chapter.quiz.option_sources[i].text.slice(0,125));
   assert.ok(chapter.narration.length>80);
  }
 });
