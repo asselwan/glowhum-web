@@ -18,10 +18,26 @@
     "favicon": {
       "canonical_path": "favicon.svg",
       "variants": [
-        { "path": "favicon.svg", "type": "image/svg+xml", "sha256": "239db4e65ff2d57e59bc43d6d4b85d47c0d35c619bb807fc64def9786a892a0b" },
-        { "path": "favicon.ico", "type": "image/x-icon", "sha256": "5aa8657611de25eef2e6566bd08a3301c34f63332c7294b830b467060972f211" },
-        { "path": "apple-touch-icon.png", "type": "image/png", "sha256": "42a4aa8f0487a846e0cb5db992a4bdcf3c6c5d14c82f9dbfa9d74680264f8f54" },
-        { "path": "site.webmanifest", "type": "application/manifest+json", "sha256": "eb06f851fbdfee7a0b8ede05545cd2b23b7d456a0e90d39a8dab5f5cf07d5e43" }
+        {
+          "path": "favicon.svg",
+          "type": "image/svg+xml",
+          "sha256": "239db4e65ff2d57e59bc43d6d4b85d47c0d35c619bb807fc64def9786a892a0b"
+        },
+        {
+          "path": "favicon.ico",
+          "type": "image/x-icon",
+          "sha256": "5aa8657611de25eef2e6566bd08a3301c34f63332c7294b830b467060972f211"
+        },
+        {
+          "path": "apple-touch-icon.png",
+          "type": "image/png",
+          "sha256": "42a4aa8f0487a846e0cb5db992a4bdcf3c6c5d14c82f9dbfa9d74680264f8f54"
+        },
+        {
+          "path": "site.webmanifest",
+          "type": "application/manifest+json",
+          "sha256": "eb06f851fbdfee7a0b8ede05545cd2b23b7d456a0e90d39a8dab5f5cf07d5e43"
+        }
       ]
     }
   },
@@ -30,31 +46,52 @@
       "route": "/",
       "file": "index.html",
       "brand_text": "GLOWHUM",
-      "icon_refs": ["favicon.svg", "apple-touch-icon.png", "site.webmanifest"]
+      "icon_refs": [
+        "favicon.svg",
+        "apple-touch-icon.png",
+        "site.webmanifest"
+      ]
     },
     {
       "route": "/drop",
       "file": "drop.html",
       "brand_text": "Glowhum",
-      "icon_refs": ["favicon.svg"]
+      "icon_refs": [
+        "favicon.svg"
+      ]
     },
     {
       "route": "/preview",
       "file": "preview.html",
       "brand_text": "GLOWHUM",
-      "icon_refs": ["favicon.svg"]
+      "icon_refs": [
+        "favicon.svg"
+      ]
     },
     {
       "route": "/order",
       "file": "order.html",
       "brand_text": "GLOWHUM",
-      "icon_refs": ["favicon.svg"]
+      "icon_refs": [
+        "favicon.svg"
+      ]
     },
     {
       "route": "/job",
       "file": "job.html",
       "brand_text": "GLOWHUM",
-      "icon_refs": ["favicon.svg"]
+      "icon_refs": [
+        "favicon.svg"
+      ]
+    },
+    {
+      "route": "/book/:id",
+      "file": "book.html",
+      "brand_text": "GLOWHUM",
+      "icon_refs": [
+        "favicon.svg"
+      ],
+      "handler_file": "webbook.mjs"
     }
   ],
   "redirects": [

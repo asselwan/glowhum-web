@@ -58,7 +58,7 @@
     .field{display:block;font-weight:800;margin:15px 0}
     .field span{display:block;margin-bottom:7px}
     .hint{color:var(--dim);font-size:14px;font-weight:600}
-    .field input,.field textarea{width:100%;resize:vertical;border:1px solid var(--line);border-radius:var(--rad);background:#120d09;color:var(--ink);font:inherit;font-size:16px;padding:13px;transition:border-color .18s cubic-bezier(.16,1,.3,1)}
+    .field input,.field textarea,.field select{width:100%;resize:vertical;border:1px solid var(--line);border-radius:var(--rad);background:#120d09;color:var(--ink);font:inherit;font-size:16px;padding:13px;transition:border-color .18s cubic-bezier(.16,1,.3,1)}
     .field input:focus,.field textarea:focus{outline:2px solid var(--core);outline-offset:2px}
     .or{color:var(--dim);font-size:14px;font-weight:800;text-align:center;margin:10px 0}
     .checkout{position:relative;width:100%;min-height:54px;border:0;border-radius:var(--rad);background:linear-gradient(100deg,var(--core),var(--aura));color:#241206;cursor:pointer;font-family:inherit;font-size:18px;font-weight:900;line-height:1.2;padding:16px 20px;margin-top:8px;transition:transform .12s cubic-bezier(.16,1,.3,1),box-shadow .18s cubic-bezier(.16,1,.3,1)}
@@ -124,7 +124,7 @@
       <div class="reel" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     </section>
     <ul class="facts" aria-label="Price and delivery">
-      <li><b>Price</b><span class="price"><span data-price>199</span> AED</span></li>
+      <li><b>Price</b><span class="price"><span data-price>199</span> <span data-currency>AED</span></span></li>
       <li><b>Billing</b><span>One payment. No subscription.</span></li>
       <li class="wide"><b>Delivery time</b><span data-turnaround>We have not set a fixed delivery time yet. Your order page shows each step as it happens, and we email you when it is ready.</span></li>
     </ul>
@@ -132,31 +132,34 @@
       <h2>Watch a sample</h2>
       <div class="frame"></div>
     </section>
-    <section class="layout" aria-label="Order one episode">
+    <p><a href="/book/00000000000000000000000000000000">Try the public-domain Web Book sample: Alice’s Adventures in Wonderland →</a></p>
+    <section class="layout" aria-label="Order from Glowhum">
       <form class="card" id="orderForm">
-        <h2>Order your episode</h2>
+        <h2>Order from Glowhum</h2>
+        <label class="field" for="product"><span>Format</span><select id="product" name="product"><option value="episode">Episode · video and three cuts</option><option value="web_book">Web Book · narrated, interactive PDF</option></select></label>
         <p class="muted">Your email and a topic or report link. Then pay with Stripe.</p>
         <label class="field" for="email"><span>Email</span><input id="email" name="email" type="email" autocomplete="email" required placeholder="you@example.com"></label>
         <label class="field" for="topic"><span>Topic <em class="hint">or use a report URL below</em></span><textarea id="topic" name="topic" rows="3" maxlength="500" placeholder="What should the episode cover?"></textarea></label>
-        <div class="or">OR</div>
-        <label class="field" for="reportUrl"><span>Report URL <em class="hint">or add a topic above</em></span><input id="reportUrl" name="report_url" type="url" inputmode="url" maxlength="500" placeholder="https://example.com/report"></label>
+        <div class="or" id="reportOr">OR</div>
+        <label class="field" for="reportUrl"><span><span id="reportLabel">Report URL</span> <em class="hint" id="reportHint">or add a topic above</em></span><input id="reportUrl" name="report_url" type="url" inputmode="url" maxlength="500" placeholder="https://example.com/report"></label>
         <button class="checkout" id="checkoutButton" type="submit" data-nomoi-cta="order_checkout"><span class="btn-label">Continue to payment</span><span class="spinner" aria-hidden="true"></span></button>
-        <p class="secure">Secure payment on Stripe. <span data-price>199</span> AED, charged once.</p>
+        <p class="secure">Secure payment on Stripe. <span data-price>199</span> <span data-currency>AED</span>, charged once.</p>
         <p class="notice" id="notice" role="alert"></p>
-        <p class="guarantee"><b>Delivered or refunded.</b> If we cannot deliver your episode, you get a full refund.</p>
+        <p class="guarantee"><b>Delivered or refunded.</b> If we cannot deliver your order, you get a full refund.</p>
       </form>
       <aside class="details">
         <h2>What you get</h2>
-        <ul class="side-list">
+        <ul class="side-list" id="episodeDetails">
           <li><b>One long form episode</b>Script, voice, visuals and captions.</li>
           <li><b>Three vertical cuts</b>Ready for Shorts and TikTok.</li>
           <li><b>An unlisted YouTube link</b>Only people with the link can watch it. We email it to you.</li>
         </ul>
+        <ul class="side-list" id="bookDetails" hidden><li><b>Interactive chapters</b>Read the source passage and follow the captions.</li><li><b>Listen at your pace</b>Adjust narration volume and speed.</li><li><b>Source-linked quizzes</b>A wrong answer takes you to the cited PDF page.</li></ul>
         <h2>How it works</h2>
         <ol class="steps">
           <li>Send your topic or report link</li>
           <li>Pay once with Stripe</li>
-          <li>Track your order, then watch your episode</li>
+          <li id="finalStep">Track your order, then watch your episode</li>
         </ol>
         <p class="fact">Have a file instead of a link? <a href="/drop">Save your report and get a receipt.</a></p>
         <p class="fact">Questions first? <a data-nomoi-cta="concierge_whatsapp" href="https://wa.me/18312937534?text=Hi%20Glowhum%2C%20I%27d%20like%20reels%20made%20for%3A%20" target="_blank" rel="noopener">Message us on WhatsApp.</a></p>
@@ -179,14 +182,11 @@
       var button=document.getElementById('checkoutButton');
       var notice=document.getElementById('notice');
       var readyLabel='Continue to payment';
-      fetch('/api/order-config').then(function(r){return r.ok?r.json():null}).then(function(data){
-        if(data&&Number.isInteger(data.price_aed)){document.querySelectorAll('[data-price]').forEach(function(node){node.textContent=data.price_aed});readyLabel='Pay '+data.price_aed+' AED';setLabel(button,readyLabel);}
-        if(data&&data.checkout_ready===false){button.disabled=true;setLabel(button,'Payment is not open yet');notice.textContent='We are finishing payment setup.';}
-      }).catch(function(){});
+      var config=null;function updateProduct(){var book=form.product.value==='web_book';document.getElementById('episodeDetails').hidden=book;document.getElementById('bookDetails').hidden=!book;document.getElementById('finalStep').textContent=book?'Track your order, then open your Web Book':'Track your order, then watch your episode';document.getElementById('reportLabel').textContent=book?'Public PDF URL':'Report URL';document.getElementById('reportHint').textContent=book?'required for a Web Book':'or add a topic above';document.getElementById('reportOr').textContent=book?'PDF source':'OR';form.report_url.required=book;var offer=book?(config&&config.web_book):config;var price=offer&&offer.price_aed; document.querySelectorAll('[data-price]').forEach(function(node){node.textContent=Number.isInteger(price)?price:'Pending'});document.querySelectorAll('[data-currency]').forEach(function(node){node.textContent=Number.isInteger(price)?'AED':''});readyLabel=Number.isInteger(price)?'Pay '+price+' AED':'Payment not open yet';setLabel(button,readyLabel);button.disabled=!offer||!offer.checkout_ready;notice.textContent=button.disabled?'This format is not open for payment yet.':'';}form.product.addEventListener('change',updateProduct);Promise.all([fetch('/api/order-config').then(function(r){return r.ok?r.json():null}),fetch('/api/web-book-config').then(function(r){return r.ok?r.json():null})]).then(function(data){config=data[0]||{};config.web_book=data[1];updateProduct()}).catch(function(){updateProduct()});
       form.addEventListener('submit',function(event){
         event.preventDefault(); notice.textContent='';
-        var payload={email:form.email.value.trim(),topic:form.topic.value.trim(),report_url:form.report_url.value.trim()};
-        if(!payload.topic&&!payload.report_url){notice.textContent='Add a topic or a report URL.';return;}
+        var payload={email:form.email.value.trim(),topic:form.topic.value.trim(),report_url:form.report_url.value.trim(),product:form.product.value};
+        if(!payload.topic&&!payload.report_url){notice.textContent='Add a topic or a report URL.';return;}if(payload.product==='web_book'&&!payload.report_url){notice.textContent='Add a public PDF URL.';return;}
         button.disabled=true; button.classList.add('loading'); setLabel(button,'Opening payment…');
         fetch('/api/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
           .then(function(response){return response.json().then(function(body){return {ok:response.ok,body:body};});})
