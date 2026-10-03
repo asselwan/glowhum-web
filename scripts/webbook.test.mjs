@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildBook } from './run-webbook.mjs';
+import { buildBook, pronunciation } from './run-webbook.mjs';
 const repo=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 test('demo Web Book keeps every quiz answer tied to its PDF passage',async()=>{
  const pdf=await fs.readFile(path.join(repo,'demo/source.pdf'));
@@ -16,7 +16,17 @@ test('demo Web Book keeps every quiz answer tied to its PDF passage',async()=>{
   assert.equal(chapter.quiz.options[chapter.quiz.answer],chapter.passage.text.slice(0,125));
   for(let i=0;i<chapter.quiz.options.length;i++)assert.equal(chapter.quiz.options[i],chapter.quiz.option_sources[i].text.slice(0,125));
   assert.ok(chapter.narration.length>80);
+  assert.ok(!/https?:\/\//.test(chapter.narration));
+  assert.equal(chapter.source_url,'https://www.gutenberg.org/cache/epub/11/pg11.txt');
+  assert.ok(!/https?:\/\/[^\s]+ or /.test(chapter.narration));
  }
+ assert.ok(!book.chapters[1].passage.text.endsWith('which was l'));
+ assert.ok(!book.chapters[2].passage.text.endsWith('hap'));
+});
+
+test('pronunciation changes fractions but preserves URL and citation slashes',()=>{
+ assert.equal(pronunciation('x/y and 3/4; and/or; https://www.gutenberg.org/cache/epub/11/pg11.txt'),
+  'x or y and 3 or 4; and/or; https://www.gutenberg.org/cache/epub/11/pg11.txt');
 });
 
 test('Web Book checkout chooses its own Stripe Price and requires a PDF URL',async()=>{
