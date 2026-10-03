@@ -124,7 +124,7 @@
       <div class="reel" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     </section>
     <ul class="facts" aria-label="Price and delivery">
-      <li><b>Price</b><span class="price"><span data-price>199</span> AED</span></li>
+      <li><b>Price</b><span class="price"><span data-price>199</span> <span data-currency>AED</span></span></li>
       <li><b>Billing</b><span>One payment. No subscription.</span></li>
       <li class="wide"><b>Delivery time</b><span data-turnaround>We have not set a fixed delivery time yet. Your order page shows each step as it happens, and we email you when it is ready.</span></li>
     </ul>
@@ -143,7 +143,7 @@
         <div class="or" id="reportOr">OR</div>
         <label class="field" for="reportUrl"><span><span id="reportLabel">Report URL</span> <em class="hint" id="reportHint">or add a topic above</em></span><input id="reportUrl" name="report_url" type="url" inputmode="url" maxlength="500" placeholder="https://example.com/report"></label>
         <button class="checkout" id="checkoutButton" type="submit" data-nomoi-cta="order_checkout"><span class="btn-label">Continue to payment</span><span class="spinner" aria-hidden="true"></span></button>
-        <p class="secure">Secure payment on Stripe. <span data-price>199</span> AED, charged once.</p>
+        <p class="secure">Secure payment on Stripe. <span data-price>199</span> <span data-currency>AED</span>, charged once.</p>
         <p class="notice" id="notice" role="alert"></p>
         <p class="guarantee"><b>Delivered or refunded.</b> If we cannot deliver your order, you get a full refund.</p>
       </form>
@@ -182,7 +182,7 @@
       var button=document.getElementById('checkoutButton');
       var notice=document.getElementById('notice');
       var readyLabel='Continue to payment';
-      var config=null;function updateProduct(){var book=form.product.value==='web_book';document.getElementById('episodeDetails').hidden=book;document.getElementById('bookDetails').hidden=!book;document.getElementById('finalStep').textContent=book?'Track your order, then open your Web Book':'Track your order, then watch your episode';document.getElementById('reportLabel').textContent=book?'Public PDF URL':'Report URL';document.getElementById('reportHint').textContent=book?'required for a Web Book':'or add a topic above';document.getElementById('reportOr').textContent=book?'PDF source':'OR';form.report_url.required=book;var offer=book?(config&&config.web_book):config;var price=offer&&offer.price_aed; if(Number.isInteger(price)){document.querySelectorAll('[data-price]').forEach(function(node){node.textContent=price});readyLabel='Pay '+price+' AED';setLabel(button,readyLabel);}button.disabled=!offer||!offer.checkout_ready;notice.textContent=button.disabled?'This format is not open for payment yet.':'';}form.product.addEventListener('change',updateProduct);Promise.all([fetch('/api/order-config').then(function(r){return r.ok?r.json():null}),fetch('/api/web-book-config').then(function(r){return r.ok?r.json():null})]).then(function(data){config=data[0]||{};config.web_book=data[1];updateProduct()}).catch(function(){updateProduct()});
+      var config=null;function updateProduct(){var book=form.product.value==='web_book';document.getElementById('episodeDetails').hidden=book;document.getElementById('bookDetails').hidden=!book;document.getElementById('finalStep').textContent=book?'Track your order, then open your Web Book':'Track your order, then watch your episode';document.getElementById('reportLabel').textContent=book?'Public PDF URL':'Report URL';document.getElementById('reportHint').textContent=book?'required for a Web Book':'or add a topic above';document.getElementById('reportOr').textContent=book?'PDF source':'OR';form.report_url.required=book;var offer=book?(config&&config.web_book):config;var price=offer&&offer.price_aed; document.querySelectorAll('[data-price]').forEach(function(node){node.textContent=Number.isInteger(price)?price:'Pending'});document.querySelectorAll('[data-currency]').forEach(function(node){node.textContent=Number.isInteger(price)?'AED':''});readyLabel=Number.isInteger(price)?'Pay '+price+' AED':'Payment not open yet';setLabel(button,readyLabel);button.disabled=!offer||!offer.checkout_ready;notice.textContent=button.disabled?'This format is not open for payment yet.':'';}form.product.addEventListener('change',updateProduct);Promise.all([fetch('/api/order-config').then(function(r){return r.ok?r.json():null}),fetch('/api/web-book-config').then(function(r){return r.ok?r.json():null})]).then(function(data){config=data[0]||{};config.web_book=data[1];updateProduct()}).catch(function(){updateProduct()});
       form.addEventListener('submit',function(event){
         event.preventDefault(); notice.textContent='';
         var payload={email:form.email.value.trim(),topic:form.topic.value.trim(),report_url:form.report_url.value.trim(),product:form.product.value};

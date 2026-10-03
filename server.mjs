@@ -961,7 +961,7 @@ const server = http.createServer(async (req, res) => {
       if (pathname === "/api/order-config" && req.method === "GET") {
         return sendJson(res, 200, { price_aed: EPISODE_PRICE_AED, checkout_ready: stripeIsReady() });
       }
-      if (pathname === "/api/web-book-config" && req.method === "GET") return sendJson(res, 200, { price_aed: WEB_BOOK_PRICE_AED, checkout_ready: stripeIsReady("web_book") });
+      if (pathname === "/api/web-book-config" && req.method === "GET") return sendJson(res, 200, { price_aed: process.env.GLOWHUM_WEB_BOOK_PRICE_APPROVED === "true" && Number.isInteger(Number(process.env.GLOWHUM_WEB_BOOK_PRICE_AED)) ? WEB_BOOK_PRICE_AED : null, checkout_ready: stripeIsReady("web_book") });
       if (pathname === "/api/checkout" && req.method === "POST") return handleCheckout(req, res);
       if (pathname === "/api/stripe/webhook" && req.method === "POST") return handleStripeWebhook(req, res);
       if (pathname === "/api/drop" && req.method === "POST") return handleDrop(req, res, req.socket.remoteAddress || "unknown");
