@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { guideBook } from './book-guide.mjs';
 
 const idPattern = /^[a-f0-9]{32}$/;
 export async function webBookOrderView(root, orderId) {
@@ -15,11 +16,27 @@ export async function webBookRoutes(req, res, pathname, { root }) {
     const bytes = await fs.readFile(new URL('./book-client.js', import.meta.url));
     res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'X-Content-Type-Options': 'nosniff' }); res.end(bytes); return true;
   }
-  const match = pathname.match(/^\/book\/([a-f0-9]{32})(?:\/(source\.pdf|data\.json|audio-[0-9]+\.mp3))?$/);
-  if (!match || req.method !== 'GET') return false;
+  const match = pathname.match(/^\/book\/([a-f0-9]{32})(?:\/(source\.pdf|data\.json|audio-[0-9]+\.mp3|ask))?$/);
+  if (!match || (req.method !== 'GET' && !(req.method === 'POST' && match[2] === 'ask'))) return false;
   const [, id, asset] = match;
   try {
     const folder = id === '00000000000000000000000000000000' ? new URL('./demo/', import.meta.url).pathname : path.join(root, 'books', id);
+    if (asset === 'ask') {
+      let body = '';
+      for await (const chunk of req) {
+        body += chunk;
+        if (body.length > 4096) { res.writeHead(413); res.end('Question too long'); return true; }
+      }
+      let question;
+      try { question = JSON.parse(body).question; } catch { /* invalid input handled below */ }
+      if (typeof question !== 'string' || question.length > 500 || !question.trim()) {
+        res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Enter a question of up to 500 characters.' })); return true;
+      }
+      const book = JSON.parse(await fs.readFile(path.join(folder, 'data.json'), 'utf8'));
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+      res.end(JSON.stringify(guideBook(book, question)));
+      return true;
+    }
     const file = asset ? path.join(folder, asset) : new URL('./book.html', import.meta.url);
     const bytes = await fs.readFile(file);
     const type = asset === 'source.pdf' ? 'application/pdf' : asset === 'data.json' ? 'application/json; charset=utf-8' : asset?.endsWith('.mp3') ? 'audio/mpeg' : 'text/html; charset=utf-8';
