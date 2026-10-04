@@ -20,7 +20,9 @@ export function guideBook(book, question) {
   if (!best || (terms.length > 1 && best.score < 0.6)) return { found: false, message: 'I could not find that in this book’s chapter excerpts.' };
   return {
     found: true,
-    message: 'This chapter excerpt looks relevant. Read the cited passage to answer your question.',
+    match_type: 'word_overlap',
+    claim_verified: false,
+    message: `This passage mentions ${best.matches.join(', ')}. This word match does not verify your question or its claim. Read the passage and source page to check.`,
     chapter_index: best.index,
     chapter_title: best.chapter.title,
     page: best.chapter.passage.page,
