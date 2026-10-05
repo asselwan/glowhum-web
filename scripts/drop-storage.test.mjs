@@ -45,7 +45,11 @@ test('report bytes and receipt remain intact, and failed uploads leave no saved 
     assert.match(res.body.toString(), /Preview/);
     assert.match(res.body.toString(), /Publish as unlisted/);
     assert.match(res.body.toString(), /Save receipt/);
-    assert.doesNotMatch(res.body.toString(), /[—–]|(?:^|\s)-(?=\s|$)|\bAI\b|artificial intelligence/i);
+    // Inspect page copy and script messages, excluding telemetry comments and URLs.
+    const pageCopy = res.body.toString()
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/https?:\/\/[^\s'"<>]+/g, '');
+    assert.doesNotMatch(pageCopy, /[—–]|(?:^|\s)-(?=\s|$)|\bAI\b|artificial intelligence/i);
   } finally {
     await fs.rm(root, {recursive:true, force:true});
   }

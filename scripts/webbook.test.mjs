@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildBook, pronunciation } from './run-webbook.mjs';
+import { guideBook } from '../book-guide.mjs';
 const repo=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 test('demo Web Book keeps every quiz answer tied to its PDF passage',async()=>{
  const pdf=await fs.readFile(path.join(repo,'demo/source.pdf'));
@@ -27,6 +28,30 @@ test('demo Web Book keeps every quiz answer tied to its PDF passage',async()=>{
 test('pronunciation changes fractions but preserves URL and citation slashes',()=>{
  assert.equal(pronunciation('x/y and 3/4; and/or; https://www.gutenberg.org/cache/epub/11/pg11.txt'),
   'x or y and 3 or 4; and/or; https://www.gutenberg.org/cache/epub/11/pg11.txt');
+});
+
+test('reader guide locates Dodo passage without presenting word overlap as verification',async()=>{
+ const pdf=await fs.readFile(path.join(repo,'demo/source.pdf'));
+ const book=await buildBook(pdf,"Alice's Adventures in Wonderland");
+ const positive=guideBook(book,'Where does Alice meet the Dodo birds near the pool?');
+ assert.equal(positive.found,true);
+ assert.equal(positive.page,13);
+ assert.deepEqual(positive.matched_terms,['alice','dodo','birds','pool']);
+ assert.equal(positive.claim_verified,false);
+ assert.equal(positive.match_type,'word_overlap');
+ assert.match(positive.message,/does not verify your question or its claim/i);
+
+ const mars=guideBook(book,'Do Dodo birds fly to Mars from the pool?');
+ assert.equal(mars.found,true);
+ assert.equal(mars.page,13);
+ assert.deepEqual(mars.matched_terms,['dodo','birds','pool']);
+ assert.equal(mars.claim_verified,false);
+ assert.equal(mars.match_type,'word_overlap');
+ assert.match(mars.message,/does not verify your question or its claim/i);
+ assert.doesNotMatch(mars.message,/looks relevant|answers your question/i);
+
+ const unrelated=guideBook(book,'How does the book explain quantum mechanics?');
+ assert.equal(unrelated.found,false);
 });
 
 test('Web Book checkout chooses its own Stripe Price and requires a PDF URL',async()=>{
