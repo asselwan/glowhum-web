@@ -123,7 +123,7 @@ The founder summary action is a server action. It does not report success from a
 
 Set these server-only values in the deployment environment:
 
-- `GLOWHUM_CHANNEL_FORMAT_SOURCE` is the absolute path to `NOMOI_CHANNEL_FORMAT_GENSPARK_K3_2026_09_04.md`.
+- `GLOWHUM_CHANNEL_FORMAT_SOURCE` is the absolute path to the canonical `NOMOI_CHANNEL_FORMAT_GENSPARK_K3_2026_09_04.md` on the deployment host. The repository fixture is for unit tests only.
 - `GLOWHUM_FOUNDER_DELIVERY_URL` is the approved HTTPS destination for the founder message.
 - `GLOWHUM_FOUNDER_DELIVERY_TOKEN` is a random value of at least 32 characters used by the protected action.
 - `GLOWHUM_FOUNDER_DELIVERY_SECRET` is optional and is sent to the destination as a bearer credential.

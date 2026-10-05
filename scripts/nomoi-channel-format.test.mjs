@@ -1,15 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { inspectChannelFormat, verifyChannelFormat, DEFAULT_ARTIFACT_PATH } from "./verify-nomoi-channel-format.mjs";
+import { fileURLToPath } from "node:url";
+import { inspectChannelFormat, verifyChannelFormat } from "./verify-nomoi-channel-format.mjs";
 
-test("the canonical channel format covers the complete requested scope", async () => {
-  const result = await verifyChannelFormat();
+const fixturePath = fileURLToPath(new URL("../test/fixtures/nomoi-channel-format.md", import.meta.url));
+
+test("the channel format fixture covers the complete requested scope", async () => {
+  const result = await verifyChannelFormat(fixturePath);
   assert.equal(result.status, "COMPLETE");
   assert.equal(result.gate_remaining, "FOUNDER_ACCEPTANCE_OR_REAL_RUN");
   assert.equal(result.checks.length, 5);
   assert.ok(result.bytes > 0);
   assert.match(result.sha256, /^[a-f0-9]{64}$/);
-  assert.equal(result.artifact, DEFAULT_ARTIFACT_PATH);
+  assert.equal(result.artifact, fixturePath);
 });
 
 test("the checker rejects a one episode substitute", () => {
