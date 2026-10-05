@@ -4,9 +4,10 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { buildFounderSummary, deliverFounderSummary, founderSummaryRoutes } from "../founder-summary.mjs";
 
-const sourcePath = "/home/ainur/Apps/.ainur/physai/NOMOI_CHANNEL_FORMAT_GENSPARK_K3_2026_09_04.md";
+const sourcePath = fileURLToPath(new URL("../test/fixtures/nomoi-channel-format.md", import.meta.url));
 
 async function tempRoot() {
   return fs.mkdtemp(path.join(os.tmpdir(), "glowhum-founder-summary-"));
@@ -33,7 +34,7 @@ function responseCapture() {
   };
 }
 
-test("founder summary is generated from the complete verified source", async () => {
+test("founder summary is generated from the verified fixture", async () => {
   const source = await fs.readFile(sourcePath);
   const sourceHash = crypto.createHash("sha256").update(source).digest("hex");
   const summary = buildFounderSummary(source.toString("utf8"), sourceHash);
