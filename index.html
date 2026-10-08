@@ -118,15 +118,15 @@
   </header>
   <main class="wrap">
     <section class="hero">
-      <div class="eyebrow">Done for you</div>
-      <h1>Send a topic. Get a <span>finished episode</span>.</h1>
-      <p>We make one long form episode and three vertical cuts from your topic or report, then email you the link to watch it.</p>
+      <div class="eyebrow" id="heroEyebrow">Done for you</div>
+      <h1 id="heroTitle">Send a topic. Get a <span>finished episode</span>.</h1>
+      <p id="heroDescription">We make one long form episode and three vertical cuts from your topic or report, then email you the link to watch it.</p>
       <div class="reel" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
     </section>
     <ul class="facts" aria-label="Price and delivery">
       <li><b>Price</b><span class="price"><span data-price>199</span> <span data-currency>AED</span></span></li>
       <li><b>Billing</b><span>One payment. No subscription.</span></li>
-      <li class="wide"><b>Delivery time</b><span data-turnaround>We have not set a fixed delivery time yet. Your order page shows each step as it happens, and we email you when it is ready.</span></li>
+      <li class="wide"><b>Delivery time</b><span data-turnaround id="deliveryDescription">We have not set a fixed delivery time yet. Your order page shows each step as it happens, and we email you when it is ready.</span></li>
     </ul>
     <section class="sample" id="sample" aria-label="Sample episode" data-sample-url="" hidden>
       <h2>Watch a sample</h2>
@@ -137,9 +137,9 @@
       <form class="card" id="orderForm">
         <h2>Order from Glowhum</h2>
         <label class="field" for="product"><span>Format</span><select id="product" name="product"><option value="episode">Episode · video and three cuts</option><option value="web_book">Web Book · narrated, interactive PDF</option></select></label>
-        <p class="muted">Your email and a topic or report link. Then pay with Stripe.</p>
+        <p class="muted" id="formDescription">Your email and a topic or report link. Then pay with Stripe.</p>
         <label class="field" for="email"><span>Email</span><input id="email" name="email" type="email" autocomplete="email" required placeholder="you@example.com"></label>
-        <label class="field" for="topic"><span>Topic <em class="hint">or use a report URL below</em></span><textarea id="topic" name="topic" rows="3" maxlength="500" placeholder="What should the episode cover?"></textarea></label>
+        <label class="field" for="topic" id="topicField"><span>Topic <em class="hint">or use a report URL below</em></span><textarea id="topic" name="topic" rows="3" maxlength="500" placeholder="What should the episode cover?"></textarea></label>
         <div class="or" id="reportOr">OR</div>
         <label class="field" for="reportUrl"><span><span id="reportLabel">Report URL</span> <em class="hint" id="reportHint">or add a topic above</em></span><input id="reportUrl" name="report_url" type="url" inputmode="url" maxlength="500" placeholder="https://example.com/report"></label>
         <button class="checkout" id="checkoutButton" type="submit" data-nomoi-cta="order_checkout"><span class="btn-label">Continue to payment</span><span class="spinner" aria-hidden="true"></span></button>
@@ -157,7 +157,7 @@
         <ul class="side-list" id="bookDetails" hidden><li><b>Interactive chapters</b>Read the source passage and follow the captions.</li><li><b>Listen at your pace</b>Adjust narration volume and speed.</li><li><b>Source-linked quizzes</b>A wrong answer takes you to the cited PDF page.</li></ul>
         <h2>How it works</h2>
         <ol class="steps">
-          <li>Send your topic or report link</li>
+          <li id="firstStep">Send your topic or report link</li>
           <li>Pay once with Stripe</li>
           <li id="finalStep">Track your order, then watch your episode</li>
         </ol>
@@ -182,11 +182,41 @@
       var button=document.getElementById('checkoutButton');
       var notice=document.getElementById('notice');
       var readyLabel='Continue to payment';
-      var config=null;function updateProduct(){var book=form.product.value==='web_book';document.getElementById('episodeDetails').hidden=book;document.getElementById('bookDetails').hidden=!book;document.getElementById('finalStep').textContent=book?'Track your order, then open your Web Book':'Track your order, then watch your episode';document.getElementById('reportLabel').textContent=book?'Public PDF URL':'Report URL';document.getElementById('reportHint').textContent=book?'required for a Web Book':'or add a topic above';document.getElementById('reportOr').textContent=book?'PDF source':'OR';form.report_url.required=book;var offer=book?(config&&config.web_book):config;var price=offer&&offer.price_aed; document.querySelectorAll('[data-price]').forEach(function(node){node.textContent=Number.isInteger(price)?price:'Pending'});document.querySelectorAll('[data-currency]').forEach(function(node){node.textContent=Number.isInteger(price)?'AED':''});readyLabel=Number.isInteger(price)?'Pay '+price+' AED':'Payment not open yet';setLabel(button,readyLabel);button.disabled=!offer||!offer.checkout_ready;notice.textContent=button.disabled?'This format is not open for payment yet.':'';}form.product.addEventListener('change',updateProduct);Promise.all([fetch('/api/order-config').then(function(r){return r.ok?r.json():null}),fetch('/api/web-book-config').then(function(r){return r.ok?r.json():null})]).then(function(data){config=data[0]||{};config.web_book=data[1];updateProduct()}).catch(function(){updateProduct()});
+      var config=null;
+      function updateProduct(){
+        var book=form.product.value==='web_book';
+        document.getElementById('heroEyebrow').textContent=book?'Interactive Web Book':'Done for you';
+        document.getElementById('heroTitle').innerHTML=book?'Turn a public PDF into a <span>Web Book</span>.':'Send a topic. Get a <span>finished episode</span>.';
+        document.getElementById('heroDescription').textContent=book?'Read and listen to your PDF with source-linked chapters, captions and quizzes.':'We make one long form episode and three vertical cuts from your topic or report, then email you the link to watch it.';
+        document.getElementById('deliveryDescription').textContent=book?'No fixed delivery time is promised. Your order page shows when your Web Book is ready.':'We have not set a fixed delivery time yet. Your order page shows each step as it happens, and we email you when it is ready.';
+        document.getElementById('formDescription').textContent=book?'Your email and a public PDF URL. The PDF is required for this format.':'Your email and a topic or report link. Then pay with Stripe.';
+        document.getElementById('topicField').hidden=book;
+        document.getElementById('reportOr').hidden=book;
+        document.getElementById('firstStep').textContent=book?'Send a public PDF URL':'Send your topic or report link';
+        document.getElementById('finalStep').textContent=book?'Track your order, then open your Web Book':'Track your order, then watch your episode';
+        document.getElementById('episodeDetails').hidden=book;
+        document.getElementById('bookDetails').hidden=!book;
+        document.getElementById('reportLabel').textContent=book?'Public PDF URL':'Report URL';
+        document.getElementById('reportHint').textContent=book?'required for a Web Book':'or add a topic above';
+        form.report_url.required=book;
+        var offer=book?(config&&config.web_book):config;
+        var price=offer&&offer.price_aed;
+        document.querySelectorAll('[data-price]').forEach(function(node){node.textContent=Number.isInteger(price)?price:'Pending'});
+        document.querySelectorAll('[data-currency]').forEach(function(node){node.textContent=Number.isInteger(price)?'AED':''});
+        readyLabel=Number.isInteger(price)?'Pay '+price+' AED':'Payment not open yet';
+        setLabel(button,readyLabel);
+        button.disabled=!offer||!offer.checkout_ready;
+        notice.textContent=button.disabled?'This format is not open for payment yet.':'';
+      }
+      if(new URLSearchParams(window.location.search).get('format')==='web_book')form.product.value='web_book';
+      form.product.addEventListener('change',updateProduct);
+      updateProduct();
+      Promise.all([fetch('/api/order-config').then(function(r){return r.ok?r.json():null}),fetch('/api/web-book-config').then(function(r){return r.ok?r.json():null})]).then(function(data){config=data[0]||{};config.web_book=data[1];updateProduct()}).catch(function(){updateProduct()});
       form.addEventListener('submit',function(event){
         event.preventDefault(); notice.textContent='';
-        var payload={email:form.email.value.trim(),topic:form.topic.value.trim(),report_url:form.report_url.value.trim(),product:form.product.value};
-        if(!payload.topic&&!payload.report_url){notice.textContent='Add a topic or a report URL.';return;}if(payload.product==='web_book'&&!payload.report_url){notice.textContent='Add a public PDF URL.';return;}
+        var payload={email:form.email.value.trim(),topic:form.product.value==='web_book'?'':form.topic.value.trim(),report_url:form.report_url.value.trim(),product:form.product.value};
+        if(payload.product==='web_book'&&!payload.report_url){notice.textContent='Add a public PDF URL.';return;}
+        if(!payload.topic&&!payload.report_url){notice.textContent='Add a topic or a report URL.';return;}
         button.disabled=true; button.classList.add('loading'); setLabel(button,'Opening payment…');
         fetch('/api/checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
           .then(function(response){return response.json().then(function(body){return {ok:response.ok,body:body};});})
