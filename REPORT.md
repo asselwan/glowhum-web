@@ -48,4 +48,8 @@ Results (2026-10-18): `node --test "scripts/*.test.mjs"` → 77/77 pass. `node s
 Deploy-ready config/target requirements (no deploy performed):
 - Customer flow needs NO new config: `/board?order_id=<cs_id>` + `/api/order/<cs_id>/board` activate with the next deploy for any order id having a stored receipt. Target: Coolify glowhum-web service, env unchanged.
 - Operator flow gate (unchanged): set `GLOWHUM_REQUEST_BOARD_OPERATOR_TOKEN` (≥32 random chars via the existing secure config rail; never in source, logs, or commits) in the service env. Storage lands under the existing `GLOWHUM_DROPS_DIR/request-board/` volume.
-- Open by design: `/board` is reachable by anyone but shows nothing without a valid capability link (same security model as `/order`); operator console page is local-only and sends the token only in the Authorization header.
+- Open by design: `/board` is reachable by anyone but shows nothing without a valid capability link (same security model as `/order`); `/operator/board` serves an unprivileged console shell, and all board data/actions still require the operator bearer token in the Authorization header.
+
+## Addendum 3 — served same-origin operator console
+
+The operator console is now served at `/operator/board` from the exact app origin. It no longer accepts a custom server URL, sends its token only to same-origin routes in the Authorization header, and never writes it to localStorage/sessionStorage or the URL. The static shell may load without a token but reveals no board data; operator APIs remain dormant unless a valid token is configured and reject missing/wrong bearer values. `brand/glowhum.json` includes the route. The current Coolify target still has no operator token configured, so operator access is not active until the secret is supplied through the secure deployment rail. No deployment was performed.

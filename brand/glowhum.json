@@ -102,6 +102,12 @@
         "apple-touch-icon.png",
         "site.webmanifest"
       ]
+    },
+    {
+      "route": "/operator/board",
+      "file": "operator-board.html",
+      "brand_text": "GLOWHUM",
+      "icon_refs": ["favicon.svg"]
     }
   ],
   "redirects": [

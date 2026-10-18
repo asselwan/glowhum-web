@@ -63,6 +63,11 @@ test("server mount: dormant without token, operator-only with token, restart-dur
   const off = await startServer({ GLOWHUM_DROPS_DIR: drops, DROP_ROOT: env.DROP_ROOT });
   try {
     assert.equal((await call(off.port, "GET", "/internal/request-board/acme/requests", undefined, TOKEN)).status, 404, "dormant: no token -> not mounted");
+    const operatorPage = await fetch(`http://127.0.0.1:${off.port}/operator/board`);
+    assert.equal(operatorPage.status, 200, "operator console shell is served without exposing board data");
+    const operatorHtml = await operatorPage.text();
+    assert.match(operatorHtml, /Authorization: "Bearer " \+ a\.token/, "token is sent as a bearer header");
+    assert.doesNotMatch(operatorHtml, /id="base"|localStorage|sessionStorage/, "console has no external API target or token persistence");
     assert.equal((await fetch(`http://127.0.0.1:${off.port}/api/order-config`)).status, 200, "public routes untouched");
   } finally { await stop(off); }
 

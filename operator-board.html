@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en" data-nomoi-surface="glowhum-operator-board">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Operator board — Glowhum</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    :root{--night:#0f0b08;--panel:#1c150f;--line:#3a2c1f;--ink:#f6efe4;--dim:#bba692;--core:#c4976b;--bad:#e2897d;--ok:#8fd9a8}
+    *{box-sizing:border-box}body{margin:0;background:var(--night);color:var(--ink);font:16px/1.5 ui-sans-serif,system-ui,sans-serif;padding:20px;max-width:860px}
+    .banner{border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:18px;color:var(--dim)}
+    h1{font-size:20px;letter-spacing:.08em}p{color:var(--dim)}
+    .card{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;background:var(--panel)}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    button{background:var(--core);color:#14100b;border:0;border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer}
+    button.ghost{background:transparent;color:var(--core);border:1px solid var(--core)}
+    button:disabled{opacity:.45;cursor:not-allowed}
+    input{background:#14100b;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;flex:1;min-width:190px}
+    .state{font-size:12px;font-weight:900;letter-spacing:.1em;padding:2px 8px;border-radius:6px;text-transform:uppercase}
+    .s-queued{background:#3a2c1f;color:var(--dim)}.s-active{background:var(--core);color:#14100b}
+    .s-revision{background:var(--bad);color:#14100b}.s-delivered{background:var(--ok);color:#14100b}
+    .inc{color:var(--dim);margin:4px 0;cursor:pointer}.inc.done{color:var(--ok);text-decoration:line-through}.err{color:var(--bad);font-weight:700}
+  </style>
+</head>
+<body>
+  <div class="banner">Operator access is separate from customer access. The token is used only for same-origin requests and is not saved by this page.</div>
+  <h1>GLOWHUM · Operator board</h1>
+  <p>Load one customer board by its order capability. Only operators can advance requests.</p>
+  <div class="row" style="margin-bottom:14px">
+    <input id="token" type="password" autocomplete="off" placeholder="Operator token" aria-label="Operator token">
+    <input id="tenant" autocomplete="off" placeholder="Customer order id (cs_…)" aria-label="Customer order id">
+    <button id="load" type="button">Load board</button>
+  </div>
+  <div id="status" class="err" role="status" aria-live="polite"></div>
+  <div id="board"></div>
+  <script>
+  (function () {
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+      });
+    }
+    function api() {
+      var tenant = document.getElementById("tenant").value.trim();
+      return { url: "/internal/request-board/" + encodeURIComponent(tenant) + "/requests",
+               token: document.getElementById("token").value };
+    }
+    function show(msg) { document.getElementById("status").textContent = msg || ""; }
+    function request(url, method, body) {
+      var a = api();
+      var headers = { Authorization: "Bearer " + a.token };
+      if (body !== undefined) headers["Content-Type"] = "application/json";
+      return fetch(url, { method: method, headers: headers, body: body === undefined ? undefined : JSON.stringify(body),
+                          credentials: "same-origin", cache: "no-store" })
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (b) { return { ok: r.ok, body: b }; }); });
+    }
+    function act(id, action, body) {
+      var a = api();
+      request(a.url + "/" + encodeURIComponent(id) + "/" + action, "POST", body)
+        .then(function (out) { if (!out.ok) { show(out.body.error || "Request failed."); return; } load(); })
+        .catch(function () { show("Request failed."); });
+    }
+    function load() {
+      var a = api();
+      if (!a.token) { show("Operator token required."); return; }
+      if (!/^cs_[A-Za-z0-9_]+$/.test(document.getElementById("tenant").value.trim())) { show("Enter a customer order id."); return; }
+      request(a.url, "GET")
+        .then(function (out) {
+          if (!out.ok) { show(out.body.error || "Load failed."); document.getElementById("board").innerHTML = ""; return; }
+          show("");
+          document.getElementById("board").innerHTML = out.body.requests.length ? out.body.requests.map(function (r) {
+            var incs = r.increments.map(function (inc, i) {
+              return '<div class="inc ' + (inc.done ? "done" : "") + '" data-id="' + esc(r.id) + '" data-i="' + i + '">' + (inc.done ? "☑" : "☐") + " " + esc(inc.label) + "</div>";
+            }).join("");
+            var actions = "";
+            if (r.state === "queued") actions = '<button data-act="start" data-id="' + esc(r.id) + '">Start</button>';
+            if (r.state === "active" || r.state === "revision") {
+              var ready = r.increments.every(function (i) { return i.done; });
+              actions = '<button class="ghost" data-act="revision" data-id="' + esc(r.id) + '">Request revision</button>' +
+                '<button data-act="deliver" data-id="' + esc(r.id) + '"' + (ready ? "" : " disabled") + ">Deliver</button>";
+            }
+            return '<div class="card"><div class="row"><b>' + esc(r.title) + "</b>" +
+              '<span class="state s-' + esc(r.state) + '">' + esc(r.state) + "</span>" + actions + "</div>" + incs + "</div>";
+          }).join("") : '<span style="color:var(--dim)">(no requests for this customer)</span>';
+        })
+        .catch(function () { show("Could not reach the server."); });
+    }
+    document.getElementById("load").onclick = load;
+    document.getElementById("board").addEventListener("click", function (ev) {
+      var t = ev.target;
+      if (t.dataset && t.dataset.act) return act(t.dataset.id, t.dataset.act);
+      if (t.dataset && t.dataset.id != null && t.dataset.i != null) return act(t.dataset.id, "toggle", { index: Number(t.dataset.i) });
+    });
+  })();
+  </script>
+</body>
+</html>

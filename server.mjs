@@ -622,6 +622,7 @@ export async function serveStatic(req, res) {
   else if (pathname === "/preview") file = "preview.html";
   else if (pathname === "/job") file = "job.html";
   else if (pathname === "/board") file = "board.html";
+  else if (pathname === "/operator/board") file = "operator-board.html";
   else if (pathname === "/favicon.svg") file = "favicon.svg";
   else if (pathname === "/favicon.ico") file = "favicon.ico";
   else if (pathname === "/apple-touch-icon.png") file = "apple-touch-icon.png";
