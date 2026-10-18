@@ -92,6 +92,16 @@
         "favicon.svg"
       ],
       "handler_file": "webbook.mjs"
+    },
+    {
+      "route": "/board",
+      "file": "board.html",
+      "brand_text": "GLOWHUM",
+      "icon_refs": [
+        "favicon.svg",
+        "apple-touch-icon.png",
+        "site.webmanifest"
+      ]
     }
   ],
   "redirects": [

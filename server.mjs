@@ -11,6 +11,7 @@ import { creativeJobRoutes } from "./creative-jobs.mjs";
 import { sendMail, orderPaidEmail } from "./mail.mjs";
 import { webBookRoutes, webBookOrderView } from "./webbook.mjs";
 import { publish as publishWebBook } from "./scripts/run-webbook.mjs";
+import { requestBoardRoutes, customerBoardRoutes, operatorToken } from "./request-board-routes.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -620,6 +621,7 @@ export async function serveStatic(req, res) {
   else if (pathname === "/drop") file = "drop.html";
   else if (pathname === "/preview") file = "preview.html";
   else if (pathname === "/job") file = "job.html";
+  else if (pathname === "/board") file = "board.html";
   else if (pathname === "/favicon.svg") file = "favicon.svg";
   else if (pathname === "/favicon.ico") file = "favicon.ico";
   else if (pathname === "/apple-touch-icon.png") file = "apple-touch-icon.png";
@@ -916,6 +918,19 @@ async function bridgedOrderView(orderId) {
   }
 }
 
+// Capability check for the customer board route: identical validation to the
+// order status route — the unguessable cs_ id must match a stored receipt.
+// Possession of the id IS the customer's authorization (same as /api/order/:id).
+async function orderExists(id) {
+  if (!validOrderId(id)) return false;
+  try {
+    const job = JSON.parse(await fs.readFile(receiptPath(id), "utf8"));
+    return job.order_id === id && ORDER_STATUSES.has(job.status) && validIsoDate(job.created_at);
+  } catch {
+    return false;
+  }
+}
+
 async function handleOrderStatus(res, id) {
   if (!validOrderId(id)) return sendJson(res, 404, { error: "Not found" });
   try {
@@ -957,6 +972,9 @@ const server = http.createServer(async (req, res) => {
     if (await topicPreviewRoutes(req, res, pathname, GLOWHUM_DROPS_DIR)) return;
     if (await deliveryRoutes(req, res, pathname, DROP_ROOT)) return;
     if (await founderSummaryRoutes(req, res, pathname, { storageRoot: FOUNDER_SUMMARY_ROOT })) return;
+    // Dormant by design: only mounts when an operator token (>= 32 chars) is configured.
+    // No token -> requestBoardRoutes is never consulted; behavior is unchanged.
+    if (operatorToken().length >= 32 && await requestBoardRoutes(req, res, pathname, path.join(GLOWHUM_DROPS_DIR, "request-board"))) return;
     if (pathname.startsWith("/api/")) {
       if (pathname === "/api/order-config" && req.method === "GET") {
         return sendJson(res, 200, { price_aed: EPISODE_PRICE_AED, checkout_ready: stripeIsReady() });
@@ -969,6 +987,7 @@ const server = http.createServer(async (req, res) => {
       if (emailMatch && req.method === "POST") return handleEmailSet(req, res, emailMatch[1]);
       const dropMatch = pathname.match(/^\/api\/drop\/([^/]+)$/);
       if (dropMatch && req.method === "GET") return handleReceiptGet(res, dropMatch[1]);
+      if (await customerBoardRoutes(req, res, pathname, path.join(GLOWHUM_DROPS_DIR, "request-board"), orderExists)) return;
       const orderMatch = pathname.match(/^\/api\/order\/(cs_[A-Za-z0-9_]+)$/);
       if (orderMatch && req.method === "GET") return handleOrderStatus(res, orderMatch[1]);
       return sendJson(res, 404, { error: "Not found" });

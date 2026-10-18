@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en" data-nomoi-surface="glowhum-request-board-local">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Request Board — local review only</title>
+  <meta name="robots" content="noindex,nofollow">
+  <style>
+    :root{--night:#0f0b08;--panel:#1c150f;--line:#3a2c1f;--ink:#f6efe4;--dim:#bba692;--core:#c4976b;--bad:#e2897d;--ok:#8fd9a8}
+    *{box-sizing:border-box}body{margin:0;background:#0f0b08;color:var(--ink);font:16px/1.5 ui-sans-serif,system-ui,sans-serif;padding:20px}
+    .banner{border:1px dashed var(--core);border-radius:10px;padding:10px 14px;margin-bottom:18px;color:var(--core);font-weight:700}
+    h1{font-size:22px;letter-spacing:.08em} h2{font-size:14px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;margin:22px 0 8px}
+    .slot{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--panel);min-height:64px}
+    .card{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;background:#14100b}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    button{background:var(--core);color:#14100b;border:0;border-radius:8px;padding:7px 12px;font-weight:700;cursor:pointer}
+    button.ghost{background:transparent;color:var(--core);border:1px solid var(--core)}
+    button:disabled{opacity:.4;cursor:default}
+    input{background:#14100b;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;flex:1;min-width:200px}
+    .state{font-size:12px;font-weight:900;letter-spacing:.1em;padding:2px 8px;border-radius:6px;text-transform:uppercase}
+    .s-queued{background:#3a2c1f;color:var(--dim)} .s-active{background:var(--core);color:#14100b}
+    .s-revision{background:var(--bad);color:#14100b} .s-delivered{background:var(--ok);color:#14100b}
+    .inc{display:flex;gap:8px;align-items:center;margin:4px 0;color:var(--dim);cursor:pointer}
+    .inc.done{color:var(--ok);text-decoration:line-through}
+    .metrics{display:flex;gap:18px;flex-wrap:wrap;color:var(--dim);font-size:14px}
+    .metrics b{color:var(--ink)}
+  </style>
+</head>
+<body>
+  <div class="banner">LOCAL / REVIEW ONLY — request-board mechanism replication. Not linked from any live page; do not deploy or publish.</div>
+  <h1>GLOWHUM · Request Board</h1>
+  <p style="color:var(--dim)">One active request at a time. Larger requests are delivered in increments. The client sees exactly where their work stands.</p>
+
+  <div class="metrics" id="metrics"></div>
+
+  <h2>New request</h2>
+  <div class="row">
+    <input id="title" placeholder="Topic or report link">
+    <input id="incs" placeholder="Delivery increments, comma separated" style="min-width:280px">
+    <input id="due" type="date" title="Due date (optional, powers the on-time metric)" style="min-width:150px;flex:0 1 170px">
+    <button id="add">Queue request</button>
+  </div>
+
+  <h2>Active slot — one at a time</h2>
+  <div class="slot" id="slot">(empty)</div>
+
+  <h2>Queued</h2>
+  <div id="queued"></div>
+  <h2>Delivered</h2>
+  <div id="delivered"></div>
+
+  <script src="../request-board.js"></script>
+  <script>
+  (function () {
+    const B = window.RequestBoard;
+    const STORAGE_KEY = "glowhum-request-board-v1";
+    const esc = B.escapeHtml;
+    // Fail-safe restore: any malformed stored state is discarded (fresh board),
+    // never rendered and never thrown at the user.
+    function loadBoard() {
+      try {
+        const stored = window.localStorage.getItem(STORAGE_KEY);
+        if (!stored) return B.createBoard();
+        return B.restore(stored) || B.createBoard();
+      } catch {
+        return B.createBoard();
+      }
+    }
+    function saveBoard() {
+      try { window.localStorage.setItem(STORAGE_KEY, B.serialize(board)); } catch { /* quota/unavailable: board stays in memory */ }
+    }
+    const board = loadBoard();
+    const $ = (id) => document.getElementById(id);
+    const fmtDate = (t) => (t == null ? "" : new Date(t).toISOString().slice(0, 10));
+
+    function render() {
+      const m = B.metrics(board, Date.now());
+      $("metrics").innerHTML =
+        "<span>Queued: <b>" + m.queueDepth + "</b></span>" +
+        "<span>Oldest queue age (days): <b>" + m.oldestQueueAgeDays.toFixed(2) + "</b></span>" +
+        "<span>Delivered: <b>" + m.deliveredCount + "</b></span>" +
+        "<span>On time: <b>" + m.onTimeCount + "</b></span>" +
+        "<span>Active per operator: <b>" + m.activeRequestsPerOperator + "</b></span>";
+
+      const holders = board.requests.filter(r => r.state === "active" || r.state === "revision");
+      $("slot").innerHTML = holders.length ? holders.map(card).join("") : "(empty — start a queued request)";
+
+      $("queued").innerHTML = board.requests.filter(r => r.state === "queued").map(card).join("") || "<div style='color:var(--dim)'>(none)</div>";
+      $("delivered").innerHTML = board.requests.filter(r => r.state === "delivered").map(card).join("") || "<div style='color:var(--dim)'>(none)</div>";
+    }
+
+    function card(r) {
+      const incs = r.increments.map((inc, i) =>
+        '<div class="inc ' + (inc.done ? "done" : "") + '" onclick="window.__toggle(\'' + esc(r.id) + '\',' + i + ')">' + (inc.done ? "☑" : "☐") + " " + esc(inc.label) + "</div>").join("");
+      let actions = "";
+      if (r.state === "queued") actions = '<button onclick="window.__start(\'' + esc(r.id) + '\')">Start</button>';
+      if (r.state === "active" || r.state === "revision") {
+        const ready = r.increments.every(i => i.done);
+        actions = '<button class="ghost" onclick="window.__rev(\'' + esc(r.id) + '\')">Request revision</button>' +
+          '<button onclick="window.__deliver(\'' + esc(r.id) + '\')"' + (ready ? "" : " disabled") + ">Deliver</button>";
+      }
+      const dueLine = r.dueAt != null
+        ? '<span style="color:var(--dim)">due ' + esc(fmtDate(r.dueAt)) + "</span>"
+        : "";
+      const onTimeLine = r.state === "delivered" && r.dueAt != null
+        ? '<span class="state ' + (r.deliveredAt <= r.dueAt ? "s-delivered" : "s-revision") + '">' + (r.deliveredAt <= r.dueAt ? "on time" : "late") + "</span>"
+        : "";
+      return '<div class="card"><div class="row"><b>' + esc(r.title) + "</b>" +
+        '<span class="state s-' + esc(r.state) + '">' + esc(r.state) + "</span>" + dueLine + onTimeLine + actions + "</div>" + incs + "</div>";
+    }
+
+    $("add").onclick = function () {
+      const t = $("title").value.trim();
+      const incs = $("incs").value.split(",").map(s => s.trim()).filter(Boolean);
+      let req;
+      try { req = B.enqueue(board, t, incs.length ? incs : ["Full delivery"], Date.now()); }
+      catch (e) { alert(e.message); return; }
+      const dueRaw = $("due").value;
+      if (dueRaw) {
+        try { B.setDue(board, req.id, new Date(dueRaw + "T23:59:59"), Date.now()); }
+        catch (e) { alert(e.message); return; }
+      }
+      $("title").value = ""; $("incs").value = ""; $("due").value = "";
+      saveBoard(); render();
+    };
+    window.__start = (id) => { try { B.start(board, id); saveBoard(); } catch (e) { alert(e.message); } render(); };
+    window.__deliver = (id) => { try { B.deliver(board, id, Date.now()); saveBoard(); } catch (e) { alert(e.message); } render(); };
+    window.__rev = (id) => { try { B.requestRevision(board, id, "client feedback"); saveBoard(); } catch (e) { alert(e.message); } render(); };
+    window.__toggle = (id, i) => { try { B.toggleIncrement(board, id, i); saveBoard(); } catch (e) { alert(e.message); } render(); };
+    render();
+  })();
+  </script>
+</body>
+</html>

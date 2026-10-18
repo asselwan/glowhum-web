@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GLOWHUM · Request board</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <style>
+    :root{--night:#0f0b08;--panel:#1c150f;--line:#3a2c1f;--ink:#f6efe4;--dim:#bba692;--core:#c4976b;--bad:#e2897d;--ok:#8fd9a8}
+    *{box-sizing:border-box}body{margin:0;background:#0f0b08;color:var(--ink);font:16px/1.5 ui-sans-serif,system-ui,sans-serif;padding:20px;max-width:760px}
+    h1{font-size:22px;letter-spacing:.08em} p{color:var(--dim)}
+    .card{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;background:var(--panel)}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    button{background:var(--core);color:#14100b;border:0;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer}
+    button:disabled{opacity:.4;cursor:default}
+    input{background:#14100b;color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:8px;flex:1;min-width:180px}
+    .state{font-size:12px;font-weight:900;letter-spacing:.1em;padding:2px 8px;border-radius:6px;text-transform:uppercase}
+    .s-queued{background:#3a2c1f;color:var(--dim)} .s-active{background:var(--core);color:#14100b}
+    .s-revision{background:var(--bad);color:#14100b} .s-delivered{background:var(--ok);color:#14100b}
+    .inc{color:var(--dim);margin:4px 0} .inc.done{color:var(--ok);text-decoration:line-through}
+    .err{color:var(--bad);font-weight:700} .ok{color:var(--ok)}
+  </style>
+</head>
+<body>
+  <h1>GLOWHUM · Request board</h1>
+  <p>One active request at a time. Larger requests are delivered in increments. You see exactly where your work stands.</p>
+  <div id="status" class="err" hidden></div>
+  <h2 style="font-size:14px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;margin:22px 0 8px">New request</h2>
+  <div class="row">
+    <input id="title" placeholder="Topic or report link">
+    <input id="incs" placeholder="Delivery increments, comma separated" style="min-width:260px">
+    <input id="due" type="date" style="min-width:150px;flex:0 1 170px">
+    <button id="add">Submit request</button>
+  </div>
+  <h2 style="font-size:14px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase;margin:22px 0 8px">Your requests</h2>
+  <div id="board"><span class="err">Loading…</span></div>
+
+  <script>
+  (function () {
+    // The order capability comes from the same unguessable ?order_id= link the
+    // order status page uses; the server rejects any id without a stored receipt.
+    var ORDER = new URLSearchParams(window.location.search).get("order_id") || "";
+    var API = "/api/order/" + encodeURIComponent(ORDER) + "/board";
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, function (c) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+      });
+    }
+    function fail(msg) {
+      var el = document.getElementById("status");
+      el.hidden = false; el.textContent = msg;
+      document.getElementById("board").innerHTML = "";
+    }
+    function card(r) {
+      var incs = r.increments.map(function (inc) {
+        return '<div class="inc ' + (inc.done ? "done" : "") + '">' + (inc.done ? "☑" : "☐") + " " + esc(inc.label) + "</div>";
+      }).join("");
+      var due = r.due_at ? '<span style="color:var(--dim)">due ' + esc(new Date(r.due_at).toISOString().slice(0, 10)) + "</span>" : "";
+      var onTime = r.state === "delivered" && r.due_at
+        ? '<span class="state ' + (r.delivered_at <= r.due_at ? "s-delivered" : "s-revision") + '">' + (r.delivered_at <= r.due_at ? "on time" : "late") + "</span>" : "";
+      return '<div class="card"><div class="row"><b>' + esc(r.title) + "</b>" +
+        '<span class="state s-' + esc(r.state) + '">' + esc(r.state) + "</span>" + due + onTime + "</div>" + incs + "</div>";
+    }
+    function render(requests) {
+      document.getElementById("board").innerHTML = requests.length
+        ? requests.map(card).join("")
+        : '<span style="color:var(--dim)">(no requests yet — submit your first above)</span>';
+    }
+    function load() {
+      if (!/^cs_[A-Za-z0-9_]+$/.test(ORDER)) return fail("Missing or invalid order link.");
+      fetch(API).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, b: b }; }); })
+        .then(function (out) {
+          if (!out.ok) return fail("This order link is not valid.");
+          document.getElementById("status").hidden = true;
+          render(out.b.requests || []);
+        })
+        .catch(function () { fail("Could not reach the board. Try again."); });
+    }
+    document.getElementById("add").onclick = function () {
+      var title = document.getElementById("title").value.trim();
+      var incs = document.getElementById("incs").value.split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+      var dueRaw = document.getElementById("due").value;
+      var body = { title: title, increments: incs.length ? incs : ["Full delivery"] };
+      if (dueRaw) body.due_at = new Date(dueRaw + "T23:59:59").getTime();
+      fetch(API + "/requests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+        .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, b: b }; }); })
+        .then(function (out) {
+          if (!out.ok) { fail(out.b && out.b.error ? out.b.error : "The request was not accepted."); return; }
+          document.getElementById("title").value = ""; document.getElementById("incs").value = ""; document.getElementById("due").value = "";
+          load();
+        })
+        .catch(function () { fail("Could not submit. Try again."); });
+    };
+    load();
+  })();
+  </script>
+</body>
+</html>
