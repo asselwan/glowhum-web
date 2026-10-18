@@ -19,6 +19,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 TOKEN = "synthetic-e2e-operator-token-4567890"
 ORDER_A = "cs_test_e2e_ALPHA01"
 ORDER_B = "cs_test_e2e_BRAVO02"
+ORDER_LONG = "cs_test_" + "A1_" * 45
 results = []
 
 
@@ -75,7 +76,8 @@ def api(port, method, url, body=None, token=None):
 drops = tempfile.mkdtemp(prefix="rb-e2e-drops-")
 os.makedirs(pathlib.Path(drops, "drops", ORDER_A), exist_ok=True)
 os.makedirs(pathlib.Path(drops, "drops", ORDER_B), exist_ok=True)
-for order in (ORDER_A, ORDER_B):  # synthetic paid receipts = the capability
+os.makedirs(pathlib.Path(drops, "drops", ORDER_LONG), exist_ok=True)
+for order in (ORDER_A, ORDER_B, ORDER_LONG):  # synthetic paid receipts = the capability
     pathlib.Path(drops, "drops", order, "receipt.json").write_text(json.dumps({
         "order_id": order, "status": "paid", "created_at": "2026-10-18T00:00:00.000Z"}))
 
@@ -123,6 +125,23 @@ try:
         check("operator role sees the customer board", status == 200)
         status, _ = api(port, "GET", f"/internal/request-board/{ORDER_A}/requests", token="wrong-token-" + "q" * 20)
         check("operator routes refuse a wrong token", status == 401)
+
+        long_customer = browser.new_page()
+        long_customer.goto(f"http://127.0.0.1:{port}/board?order_id={ORDER_LONG}")
+        long_customer.fill("#title", "Long capability request")
+        long_customer.fill("#incs", "review")
+        long_customer.click("#add")
+        long_customer.wait_for_selector(".card")
+        long_operator = browser.new_page()
+        long_operator.goto(f"http://127.0.0.1:{port}/operator/board")
+        long_operator.fill("#token", TOKEN)
+        long_operator.fill("#tenant", ORDER_LONG)
+        long_operator.click("#load")
+        long_operator.wait_for_selector(".card")
+        check("long Stripe capability round-trips from customer submission to operator view",
+              "Long capability request" in (long_operator.text_content("#board") or ""))
+        long_operator.close()
+        long_customer.close()
 
         browser.close()
 finally:

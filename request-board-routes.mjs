@@ -1,13 +1,13 @@
-// Server-backed request-board candidate — OPERATOR-GATED, DORMANT BY DEFAULT.
+// Server-backed request board. Customer routes are capability-scoped; operator
+// mutations and cross-customer reads require the configured bearer token.
 //
 // Why this shape: glowhum-web has per-customer capability auth (unguessable
 // Stripe cs_ / drop IDs) but NO operator authorization model. A Designjoy-style
 // client-visible board needs operator-shared durable requests across customers,
-// which is exactly a cross-tenant operator read — so nothing mounts until an
-// operator token (>= 32 chars) is configured, and every route requires it.
-// Deployment gate: set GLOWHUM_REQUEST_BOARD_OPERATOR_TOKEN + storage root, then
-// the mount activates. Until then server behavior is byte-for-byte unchanged.
-// prm_cfc51c53 v2 — local/review-only candidate; not linked from any page.
+// which is exactly a cross-tenant operator read — the API mount remains
+// disabled until an operator token (>= 32 chars) is configured.
+// The served operator page contains no board data until authenticated API calls.
+// prm_cfc51c53 v2.
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -16,7 +16,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const Board = require("./request-board.js");
 
-const TENANT = /^[A-Za-z0-9][A-Za-z0-9_-]{3,79}$/;
+const TENANT = /^(?:[A-Za-z0-9][A-Za-z0-9_-]{3,79}|cs_[A-Za-z0-9_]{1,252})$/;
 const REQUEST_ID = /^r\d+-[a-z0-9]{2,12}$/;
 
 // Per-tenant async mutex: serializes load -> mutate -> save inside this process so
@@ -38,9 +38,11 @@ export function operatorToken() {
 function bearerMatch(req) {
   const expected = operatorToken();
   const supplied = String(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
-  return expected.length >= 32
-    && supplied.length === expected.length
-    && crypto.timingSafeEqual(Buffer.from(supplied), Buffer.from(expected));
+  const expectedBytes = Buffer.from(expected);
+  const suppliedBytes = Buffer.from(supplied);
+  return expectedBytes.length >= 32
+    && suppliedBytes.length === expectedBytes.length
+    && crypto.timingSafeEqual(suppliedBytes, expectedBytes);
 }
 
 function boardFile(storageRoot, tenant) {
@@ -160,7 +162,7 @@ export async function requestBoardRoutes(req, res, pathname, storageRoot) {
 // receipt — the exact possession-auth the order status route already relies on.
 // No shared queue: every id reads and writes only its own board file.
 export async function customerBoardRoutes(req, res, pathname, storageRoot, orderExists) {
-  const match = pathname.match(/^\/api\/order\/(cs_[A-Za-z0-9_]+)\/board(\/requests)?$/);
+  const match = pathname.match(/^\/api\/order\/(cs_[A-Za-z0-9_]{1,252})\/board(\/requests)?$/);
   if (!match) return false;
   const [, orderId, requestsPart] = match;
   let valid = false;

@@ -107,7 +107,7 @@ function validateEmail(email) {
 }
 
 function validOrderId(id) {
-  return typeof id === "string" && /^cs_[A-Za-z0-9_]+$/.test(id);
+  return typeof id === "string" && /^cs_[A-Za-z0-9_]{1,252}$/.test(id);
 }
 
 function validEventId(id) {
@@ -989,7 +989,7 @@ const server = http.createServer(async (req, res) => {
       const dropMatch = pathname.match(/^\/api\/drop\/([^/]+)$/);
       if (dropMatch && req.method === "GET") return handleReceiptGet(res, dropMatch[1]);
       if (await customerBoardRoutes(req, res, pathname, path.join(GLOWHUM_DROPS_DIR, "request-board"), orderExists)) return;
-      const orderMatch = pathname.match(/^\/api\/order\/(cs_[A-Za-z0-9_]+)$/);
+      const orderMatch = pathname.match(/^\/api\/order\/(cs_[A-Za-z0-9_]{1,252})$/);
       if (orderMatch && req.method === "GET") return handleOrderStatus(res, orderMatch[1]);
       return sendJson(res, 404, { error: "Not found" });
     }

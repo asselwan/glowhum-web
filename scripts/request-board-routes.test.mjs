@@ -1,4 +1,4 @@
-// Focused tests for the operator-gated server-backed request-board candidate.
+// Focused tests for customer-capability and operator-token board routes.
 // Synthetic fixtures only (temp storage root, fake req/res). prm_cfc51c53 v2.
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -39,7 +39,7 @@ test("route is dormant (returns false) when no operator token is configured", as
 });
 
 test("every request requires the operator bearer token", async () => {
-  for (const headers of [{ authorization: "" }, { authorization: "Bearer " + "y".repeat(40) }, { authorization: "Bearer " + TOKEN.slice(0, 39) }]) {
+  for (const headers of [{ authorization: "" }, { authorization: "Bearer " + "y".repeat(40) }, { authorization: "Bearer " + TOKEN.slice(0, 39) }, { authorization: "Bearer " + "é".repeat(40) }]) {
     const r = await call("GET", "/internal/request-board/acme/requests", undefined, headers);
     assert.equal(r.status, 401, JSON.stringify(headers));
   }
@@ -171,6 +171,19 @@ test("role separation: operator can act, customer token-less mount stays read/cr
   assert.equal(op.status, 200, "operator advances the customer's request through the gated mount");
   const after = await cust("GET", "/api/order/cs_test_order_ONE111/board");
   assert.equal(after.body.requests[0].state, "active", "customer sees the operator's transition");
+});
+
+test("long Stripe capability IDs round-trip through customer and operator board routes", async () => {
+  const orderId = `cs_test_${"A1_".repeat(45)}`;
+  ORDERS.add(orderId);
+  const created = await cust("POST", `/api/order/${orderId}/board/requests`, { title: "long id customer request", increments: ["review"] });
+  assert.equal(created.status, 201);
+  const listed = await call("GET", `/internal/request-board/${orderId}/requests`);
+  assert.equal(listed.status, 200);
+  assert.equal(listed.body.requests[0].title, "long id customer request");
+  const start = await call("POST", `/internal/request-board/${orderId}/requests/${created.body.id}/start`);
+  assert.equal(start.status, 200);
+  assert.equal((await cust("GET", `/api/order/${orderId}/board`)).body.requests[0].state, "active");
 });
 
 test("WIP limit 1 holds under concurrent start submissions", async () => {

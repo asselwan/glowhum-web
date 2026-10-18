@@ -64,7 +64,7 @@
     function load() {
       var a = api();
       if (!a.token) { show("Operator token required."); return; }
-      if (!/^cs_[A-Za-z0-9_]+$/.test(document.getElementById("tenant").value.trim())) { show("Enter a customer order id."); return; }
+      if (!/^cs_[A-Za-z0-9_]{1,252}$/.test(document.getElementById("tenant").value.trim())) { show("Enter a customer order id."); return; }
       request(a.url, "GET")
         .then(function (out) {
           if (!out.ok) { show(out.body.error || "Load failed."); document.getElementById("board").innerHTML = ""; return; }

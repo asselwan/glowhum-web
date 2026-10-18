@@ -1,5 +1,5 @@
 // Cross-process tests: real server.mjs processes over HTTP with synthetic
-// fixtures — operator auth boundary, dormant default, tenant scoping through
+// fixtures — served operator shell, API auth boundary, tenant scoping through
 // the actual mount, and persistence across a full server restart.
 // prm_cfc51c53 v2.
 import test from "node:test";
