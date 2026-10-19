@@ -13,8 +13,9 @@ export async function launch() {
   const proc = spawn(CHROME, ["--headless=new", "--no-sandbox", "--disable-gpu", "--remote-debugging-port=0",
     `--user-data-dir=${dir}`, "about:blank"], { stdio: "ignore" });
   const f = path.join(dir, "DevToolsActivePort");
-  for (let i = 0; i < 100 && !existsSync(f); i++) await sleep(100);
-  if (!existsSync(f)) { proc.kill(); throw new Error("chrome did not expose DevToolsActivePort"); }
+  const ready = () => existsSync(f) && readFileSync(f, "utf8").trim().split("\n").length >= 2; // file can exist but be half-written (observed race)
+  for (let i = 0; i < 600 && !ready(); i++) await sleep(100);
+  if (!ready()) { proc.kill(); throw new Error("chrome did not expose DevToolsActivePort"); }
   const [port, wsPath] = readFileSync(f, "utf8").trim().split("\n");
   const ws = new WebSocket(`ws://127.0.0.1:${port}${wsPath}`);
   await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
